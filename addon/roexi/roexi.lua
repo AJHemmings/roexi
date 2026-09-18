@@ -39,20 +39,21 @@ local function esc(s)
 end
 
 local function queue_send(data)
-    if data and #txbuf < TXBUF_MAX then txbuf = txbuf .. data end
+    if data and #txbuf + #data <= TXBUF_MAX then txbuf = txbuf .. data end
 end
 
 local function disconnect()
     if conn then pcall(function() conn:close() end) end
     conn, connected = nil, false
     rx, txbuf = '', ''
+    act_queue = {}
     if conn_pending then pcall(function() conn_pending:close() end) conn_pending = nil end
     retry_delay = RETRY_INTERVAL
 end
 
 ----------------------------------------------------------------------
 -- ==== roexi RoE section BEGIN ====
--- Pure state + packet helpers. No transport code in here.
+-- Pure state + packet helpers. No transport code in here (nothing calls queue_send).
 ----------------------------------------------------------------------
 local roe_active = {}        -- array of { id = n, p = progress } in slot order
 local roe_done_pages = {}    -- page -> array of completed ids on that 1024-id page
@@ -89,10 +90,6 @@ end
 local function build_roedone(page)
     local ids = roe_done_pages[page] or {}
     return '{"t":"roedone","page":' .. page .. ',"ids":[' .. table.concat(ids, ',') .. ']}\n'
-end
-
-local function send_all_done_pages()
-    for page in pairs(roe_done_pages) do queue_send(build_roedone(page)) end
 end
 
 local function inject_roe(pid, id)
@@ -146,6 +143,10 @@ local function build_self(kind)
         .. '}\n'
 end
 
+local function send_all_done_pages()
+    for page in pairs(roe_done_pages) do queue_send(build_roedone(page)) end
+end
+
 -- Identity + full RoE state. Used on connect ("hello") and on "sync"/swap ("self").
 local function send_snapshot(kind)
     local s = build_self(kind)
@@ -162,6 +163,7 @@ end
 -- Queue one injection per id, ACT_DELAY apart, then a seqack. The addon does NOT filter ids
 -- (active/complete/daily range): the app owns those rules and diffs the outcome.
 local function enqueue_batch(pid, ids, seq)
+    if type(ids) ~= 'table' then ids = {} end
     local ok_all = true
     for _, raw in ipairs(ids or {}) do
         local id = tonumber(raw)
@@ -184,6 +186,7 @@ local function dispatch(line)
     if not json_ok then return end
     local ok, msg = pcall(json.decode, line)
     if not ok or type(msg) ~= 'table' then return end
+    if type(msg.cmd) ~= 'string' then return end
     if msg.cmd == 'roeadd' then
         enqueue_batch(0x10C, msg.ids, msg.seq)
     elseif msg.cmd == 'roecancel' then
@@ -191,6 +194,7 @@ local function dispatch(line)
     elseif msg.cmd == 'roerefresh' then
         reread_cached()
         queue_send(build_roe())
+        send_all_done_pages()
         pcall(request_log)
     elseif msg.cmd == 'sync' then
         send_snapshot('self')
@@ -261,7 +265,7 @@ windower.register_event('incoming chunk', function(id, data)
     end
 end)
 
-windower.register_event('prerender', function()
+local function tick()
     local now = os.clock()
 
     -- Shared-client character swap (or logout): never report the previous character's
@@ -295,7 +299,7 @@ windower.register_event('prerender', function()
             if not nl then break end
             local line = rx:sub(1, nl - 1)
             rx = rx:sub(nl + 1)
-            if #line > 0 then dispatch(line) end
+            if #line > 0 then pcall(dispatch, line) end
         end
         if #rx > TXBUF_MAX then rx = '' end
     end
@@ -328,6 +332,18 @@ windower.register_event('prerender', function()
         if n and n > 0 then txbuf = txbuf:sub(n + 1) end
         if serr == 'closed' then disconnect() return end
     end
+end
+
+local last_tick_err = 0
+windower.register_event('prerender', function()
+    local ok, err = pcall(tick)
+    if not ok then
+        local now = os.clock()
+        if now - last_tick_err > 30 then
+            last_tick_err = now
+            chat('error: ' .. tostring(err))
+        end
+    end
 end)
 
 windower.register_event('addon command', function(cmd)
@@ -356,6 +372,7 @@ end)
 
 windower.register_event('load', function()
     last_player_id = nil   -- prerender sees the player next frame and reads the cached packets
+    if not json_ok then chat('dkjson failed to load; commands from the app will be ignored') end
 end)
 
 windower.register_event('unload', function()
