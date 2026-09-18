@@ -11,7 +11,9 @@ export function doneFromPages(pages: Record<number, number[]> | undefined): Done
   const doneIds = new Set<number>();
   const donePagesKnown = new Set<number>();
   for (const [k, ids] of Object.entries(pages ?? {})) {
-    donePagesKnown.add(Number(k));
+    const page = Number(k);
+    if (!Number.isInteger(page) || page < 0) continue;
+    donePagesKnown.add(page);
     for (const id of ids) doneIds.add(id);
   }
   return { doneIds, donePagesKnown };

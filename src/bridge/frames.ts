@@ -1,5 +1,8 @@
 // Pure wire-frame handling. No Tauri, no React: bridge/index.ts wires this to events.
+// This is the only validation layer for lines arriving on the local socket, so it is strict about shape.
 import type { Box, PersistedChar, RoeActive } from '../roe/types';
+import { MAX_ACTIVE } from '../roe/types';
+import { PAGE_SIZE } from '../roe/bitmap';
 
 export type IdentityFrame = {
   t: 'hello' | 'self';
@@ -21,6 +24,8 @@ export type Frame = IdentityFrame | RoeFrame | RoeDoneFrame | SeqAckFrame;
 export type StateFrame = Exclude<Frame, SeqAckFrame>;
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const isInt = (v: unknown): v is number => isNum(v) && Number.isInteger(v);
+const isPosInt = (v: unknown): v is number => isInt(v) && v > 0;
 const optStr = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
 const optNum = (v: unknown): number | undefined => (isNum(v) ? v : undefined);
 
@@ -33,7 +38,7 @@ export function parseFrame(line: string): Frame | null {
   switch (o.t) {
     case 'hello':
     case 'self': {
-      if (!isNum(o.id) || typeof o.name !== 'string' || !o.name) return null;
+      if (!isPosInt(o.id) || typeof o.name !== 'string' || !o.name) return null;
       return {
         t: o.t, id: o.id, name: o.name,
         main: optStr(o.main), main_lvl: optNum(o.main_lvl), sub: optStr(o.sub), sub_lvl: optNum(o.sub_lvl),
@@ -42,21 +47,23 @@ export function parseFrame(line: string): Frame | null {
     }
     case 'roe': {
       if (!Array.isArray(o.items)) return null;
-      const items: RoeActive[] = [];
+      if (o.items.length > MAX_ACTIVE) return null;
+      const map = new Map<number, RoeActive>();
       for (const it of o.items as unknown[]) {
         if (it && typeof it === 'object') {
           const { id, p } = it as Record<string, unknown>;
-          if (isNum(id) && id > 0 && isNum(p)) items.push({ id, p });
+          if (isPosInt(id) && isInt(p) && p >= 0) map.set(id, { id, p });
         }
       }
-      return { t: 'roe', items };
+      return { t: 'roe', items: [...map.values()] };
     }
     case 'roedone': {
-      if (!isNum(o.page) || !Array.isArray(o.ids)) return null;
-      return { t: 'roedone', page: o.page, ids: (o.ids as unknown[]).filter(isNum) };
+      if (!isInt(o.page) || o.page < 0 || !Array.isArray(o.ids)) return null;
+      if (o.ids.length > PAGE_SIZE) return null;
+      return { t: 'roedone', page: o.page, ids: (o.ids as unknown[]).filter(isPosInt) };
     }
     case 'seqack': {
-      if (!isNum(o.seq)) return null;
+      if (!isInt(o.seq)) return null;
       return { t: 'seqack', seq: o.seq, ok: o.ok !== false };
     }
     default:

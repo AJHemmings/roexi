@@ -12,6 +12,11 @@ describe('doneFromPages', () => {
     expect(d.doneIds.size).toBe(0);
     expect(d.donePagesKnown.size).toBe(0);
   });
+  it('ignores page keys that are not non-negative integers', () => {
+    const d = doneFromPages({ abc: [1], '-1': [2], 1: [1030] } as unknown as Record<number, number[]>);
+    expect([...d.donePagesKnown]).toEqual([1]);
+    expect([...d.doneIds]).toEqual([1030]);
+  });
 });
 
 describe('doneState', () => {
