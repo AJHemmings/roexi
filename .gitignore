@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+
+src-tauri/target
+src-tauri/gen
+
+# downloaded wiki pages used by the catalog build; never committed
+data/cache/
+
+# AI-reference specs and plans; never committed
+docs/superpowers/
