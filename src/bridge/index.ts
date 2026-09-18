@@ -70,12 +70,14 @@ async function cacheDir(): Promise<string> {
 }
 const safeName = (n: string) => n.replace(/[^A-Za-z0-9]/g, '_');
 
-const diskTimers = new Map<string, number>();
+const diskTimers = new Map<string, ReturnType<typeof setTimeout>>();
 function schedulePersist(pc: PersistedChar) {
   const prev = persisted.get(pc.name);
-  persisted.set(pc.name, prev ? { ...prev, ...pc } : pc);
+  // A hello without e.g. `main` yields undefined fields; merging those would erase what we already know.
+  const clean = Object.fromEntries(Object.entries(pc).filter(([, v]) => v !== undefined)) as PersistedChar;
+  persisted.set(pc.name, prev ? { ...prev, ...clean } : clean);
   if (!inTauri || diskTimers.has(pc.name)) return;
-  diskTimers.set(pc.name, window.setTimeout(async () => {
+  diskTimers.set(pc.name, setTimeout(async () => {
     diskTimers.delete(pc.name);
     const latest = persisted.get(pc.name);
     if (!latest) return;
@@ -87,24 +89,24 @@ async function loadPersisted() {
   if (!inTauri) return;
   try {
     const files = await invoke<string[]>('list_dir', { path: await cacheDir() });
-    for (const f of files) {
-      if (!f.toLowerCase().endsWith('.json')) continue;
+    const loaded = await Promise.all(files.filter((f) => f.toLowerCase().endsWith('.json')).map(async (f) => {
       try {
         const pc = JSON.parse(await invoke<string>('read_text_file', { path: f })) as PersistedChar;
-        if (pc && pc.name) persisted.set(pc.name, pc);
-      } catch { /* skip bad file */ }
-    }
+        return pc && pc.name ? pc : null;
+      } catch { return null; /* skip bad file */ }
+    }));
+    for (const pc of loaded) if (pc) persisted.set(pc.name, pc);
     rebuild();
   } catch { /* ignore */ }
 }
 
-/** Forget an offline character entirely (memory + disk). An online one would just re-register. */
+/** Forget a character entirely (memory + disk). Only for offline characters; an online one is left alone so its connection keeps working. */
 export async function removeChar(name: string): Promise<void> {
+  for (const b of byConn.values()) if (b.name === name) return;
   const t = diskTimers.get(name);
   if (t != null) { clearTimeout(t); diskTimers.delete(name); }
   persisted.delete(name);
   if (inTauri) { try { await invoke('delete_file', { path: `${await cacheDir()}/${safeName(name)}.json` }); } catch { /* ignore */ } }
-  for (const [conn, b] of byConn) if (b.name === name) byConn.delete(conn);
   rebuild();
 }
 
@@ -115,7 +117,7 @@ export function seedPersisted(pc: PersistedChar) { persisted.set(pc.name, pc); s
 let seqCounter = 1;
 export function nextSeq(): number { return seqCounter++; }
 export type SeqAck = { ok: boolean; reason?: string };
-type Waiter = { conn: number; resolve: (a: SeqAck) => void; timer: number };
+type Waiter = { conn: number; resolve: (a: SeqAck) => void; timer: ReturnType<typeof setTimeout> };
 const seqWaiters = new Map<number, Waiter>();
 function resolveSeq(seq: number, a: SeqAck) {
   const w = seqWaiters.get(seq);
@@ -127,22 +129,28 @@ function resolveSeq(seq: number, a: SeqAck) {
 /** Resolves on the addon's seqack, on timeout ('no response'), or early when the connection drops. */
 export function awaitSeqAck(conn: number, seq: number, timeoutMs: number): Promise<SeqAck> {
   return new Promise((resolve) => {
-    const timer = window.setTimeout(() => resolveSeq(seq, { ok: false, reason: 'no response' }), timeoutMs);
+    const timer = setTimeout(() => resolveSeq(seq, { ok: false, reason: 'no response' }), timeoutMs);
     seqWaiters.set(seq, { conn, resolve, timer });
   });
 }
 
-const roeWaiters = new Map<number, Set<() => void>>();
-/** Resolves true once this connection has an active list newer than `afterTs`, else false after timeoutMs. */
+type RoeWaiter = { check: () => void; fail: () => void };
+const roeWaiters = new Map<number, Set<RoeWaiter>>();
+/** Resolves true once this connection has an active list newer than `afterTs`; false on timeout or when the connection drops. */
 export function waitForRoeFrame(conn: number, afterTs: number, timeoutMs: number): Promise<boolean> {
   if (getBoxActiveAt(conn) > afterTs) return Promise.resolve(true);
   return new Promise((resolve) => {
-    const set = roeWaiters.get(conn) ?? new Set();
+    const set = roeWaiters.get(conn) ?? new Set<RoeWaiter>();
     roeWaiters.set(conn, set);
-    const done = (ok: boolean) => { set.delete(fn); clearTimeout(timer); resolve(ok); };
-    const fn = () => { if (getBoxActiveAt(conn) > afterTs) done(true); };
-    const timer = window.setTimeout(() => done(false), timeoutMs);
-    set.add(fn);
+    const done = (ok: boolean) => {
+      set.delete(w);
+      if (set.size === 0 && roeWaiters.get(conn) === set) roeWaiters.delete(conn);
+      clearTimeout(timer);
+      resolve(ok);
+    };
+    const w: RoeWaiter = { check: () => { if (getBoxActiveAt(conn) > afterTs) done(true); }, fail: () => done(false) };
+    const timer = setTimeout(() => done(false), timeoutMs);
+    set.add(w);
   });
 }
 
@@ -163,7 +171,7 @@ export function ingestLine(conn: number, line: string) {
       active: r.box.active, activeAt: r.box.activeAt, donePages: r.box.donePages, doneAt: r.box.doneAt, savedAt: Date.now(),
     });
   }
-  if (f.t === 'roe') roeWaiters.get(conn)?.forEach((fn) => fn());
+  if (f.t === 'roe') for (const w of [...(roeWaiters.get(conn) ?? [])]) w.check();
   const identityChanged = !prev || prev.name !== r.box.name || prev.main !== r.box.main || prev.sub !== r.box.sub || prev.zoneName !== r.box.zoneName;
   if (r.persist || identityChanged) scheduleRebuild();
 }
@@ -171,7 +179,8 @@ export function ingestLine(conn: number, line: string) {
 export function dropConn(conn: number) {
   byConn.delete(conn);
   for (const [seq, w] of seqWaiters) if (w.conn === conn) resolveSeq(seq, { ok: false, reason: 'no response' });
-  roeWaiters.get(conn)?.forEach((fn) => fn());
+  for (const w of [...(roeWaiters.get(conn) ?? [])]) w.fail();
+  roeWaiters.delete(conn);
   rebuild();
 }
 
@@ -217,15 +226,28 @@ let started = false;
 export async function startBridge() {
   if (started || !inTauri) return;
   started = true;
-  await listen<{ conn: number; line: string }>('roexi://box-msg', (e) => ingestLine(e.payload.conn, e.payload.line));
-  await listen<number>('roexi://box-gone', (e) => dropConn(e.payload));
-  // The Rust listener binds before the webview registers these listeners, so an addon that was
-  // already running may have sent its hello/roe/roedone burst into the void. Ask every connected
-  // addon to resend its snapshot now that we are listening.
-  await broadcastBoxCommand(JSON.stringify({ cmd: 'sync' }));
+  try {
+    await listen<{ conn: number; line: string }>('roexi://box-msg', (e) => ingestLine(e.payload.conn, e.payload.line));
+    await listen<number>('roexi://box-gone', (e) => dropConn(e.payload));
+    // The Rust listener binds before the webview registers these listeners, so an addon that was
+    // already running may have sent its hello/roe/roedone burst into the void. Ask every connected
+    // addon to resend its snapshot now that we are listening.
+    await broadcastBoxCommand(JSON.stringify({ cmd: 'sync' }));
+  } catch (e) {
+    // A transient failure here must not permanently disable live updates: let a later call retry.
+    started = false;
+    console.warn('[roexi] bridge listeners failed', e);
+  }
+}
+
+// Persisted snapshots must be in memory before the addon's first "hello" arrives, or a character
+// that reconnects immediately gets seeded from nothing instead of its saved state (see schedulePersist,
+// which then has nothing correct to merge into disk on the next write).
+async function bootstrap() {
+  await loadPersisted();
+  await startBridge();
 }
 
 if (inTauri) {
-  void startBridge();
-  void loadPersisted();
+  void bootstrap().catch((e) => console.warn('[roexi] bridge bootstrap failed', e));
 }
