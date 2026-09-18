@@ -39,13 +39,19 @@ fn start_box_server(app: AppHandle) {
         IPC_BOUND.store(true, Ordering::Relaxed);
         log::info!("[roexi] listening on 127.0.0.1:{BOX_PORT}");
         for stream in listener.incoming().flatten() {
+            // Bound writes so a frozen client cannot block a command sender forever. Cloned
+            // handles share the socket options, so the writer stored in the map inherits this.
+            let _ = stream.set_write_timeout(Some(std::time::Duration::from_secs(5)));
             let app = app.clone();
             std::thread::spawn(move || {
                 let conn = CONN_SEQ.fetch_add(1, Ordering::Relaxed);
-                if let Ok(w) = stream.try_clone() {
-                    if let Ok(mut map) = conns().lock() {
-                        map.insert(conn, w);
+                match stream.try_clone() {
+                    Ok(w) => {
+                        if let Ok(mut map) = conns().lock() {
+                            map.insert(conn, w);
+                        }
                     }
+                    Err(e) => log::warn!("[roexi] conn {conn}: try_clone failed: {e}"),
                 }
                 let reader = BufReader::new(stream);
                 for line in reader.lines() {
@@ -70,8 +76,15 @@ fn start_box_server(app: AppHandle) {
 
 #[tauri::command]
 fn send_box_command(conn: u64, line: String) -> Result<(), String> {
-    let mut map = conns().lock().map_err(|e| e.to_string())?;
-    let stream = map.get_mut(&conn).ok_or_else(|| format!("no connection {conn}"))?;
+    // Clone the handle under the lock and release it before touching the socket, so a slow
+    // client can never stall the accept loop or other writers.
+    let mut stream = {
+        let map = conns().lock().map_err(|e| e.to_string())?;
+        map.get(&conn)
+            .ok_or_else(|| format!("no connection {conn}"))?
+            .try_clone()
+            .map_err(|e| e.to_string())?
+    };
     let mut payload = line.into_bytes();
     payload.push(b'\n');
     stream.write_all(&payload).map_err(|e| e.to_string())?;
@@ -81,11 +94,14 @@ fn send_box_command(conn: u64, line: String) -> Result<(), String> {
 
 #[tauri::command]
 fn broadcast_box_command(line: String) -> Result<u32, String> {
-    let mut map = conns().lock().map_err(|e| e.to_string())?;
+    let streams: Vec<TcpStream> = {
+        let map = conns().lock().map_err(|e| e.to_string())?;
+        map.values().filter_map(|s| s.try_clone().ok()).collect()
+    };
     let mut payload = line.into_bytes();
     payload.push(b'\n');
     let mut sent = 0u32;
-    for stream in map.values_mut() {
+    for mut stream in streams {
         if stream.write_all(&payload).and_then(|_| stream.flush()).is_ok() {
             sent += 1;
         }
@@ -203,7 +219,8 @@ fn setup_tray(_app: &tauri::AppHandle) -> Result<(), tauri::Error> {
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
-            if cfg!(debug_assertions) {
+            #[cfg(debug_assertions)]
+            {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
                         .level(log::LevelFilter::Info)
@@ -211,7 +228,9 @@ pub fn run() {
                 )?;
             }
             start_box_server(app.handle().clone());
-            let _ = setup_tray(app.handle());
+            if let Err(e) = setup_tray(app.handle()) {
+                log::warn!("[roexi] tray setup failed: {e}");
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
