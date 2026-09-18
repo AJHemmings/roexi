@@ -3,6 +3,7 @@
 // ("Van. Amorphs with Ph. Dmg." vs "Van. Amorphs with Ph. Damage"), so every token
 // either side abbreviates is expanded on BOTH sides before comparing.
 
+// Note: `w: with` also swallows the bare "w" left behind when a "(W)" weekly marker is stripped. Harmless today (both sides normalise identically), but it is the first entry to check if a name collision ever appears.
 const ABBREV = new Map<string, string>(Object.entries({
   van: 'vanquish', vanq: 'vanquish', vanquished: 'vanquish',
   subj: 'subjugation',
