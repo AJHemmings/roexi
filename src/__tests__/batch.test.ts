@@ -64,14 +64,23 @@ describe('runAdd', () => {
     expect(getResults()[0].chars[0]).toMatchObject({ name: 'Cassius', status: 'offline' });
   });
 
-  it('publishes "no-response" when the addon never acks, but still diffs (still checks landed ids)', async () => {
+  it('publishes "no-response" when the addon never acks, but still diffs against what actually happened', async () => {
     hello(4, 'Delphine');
     vi.advanceTimersByTime(200);
-    setCommandSink(null); // no answer at all
+    setCommandSink((conn, line) => {
+      const msg = JSON.parse(line) as { cmd: string; ids?: number[] };
+      // Simulate the injection landing but the seqack getting lost: apply state and emit a fresh
+      // roe frame, but never send a seqack at all.
+      if (msg.cmd === 'roeadd') {
+        setTimeout(() => {
+          ingestLine(conn, JSON.stringify({ t: 'roe', items: (msg.ids ?? []).map((id) => ({ id, p: 0 })) }));
+        }, 50);
+      }
+    });
     const p = runAdd([known('Delphine')], [1], byId);
-    await vi.advanceTimersByTimeAsync(20_000); // past the 15s ack timeout + 1.5s settle timeout
+    await vi.advanceTimersByTimeAsync(20_000); // past the 15s ack timeout; the roe frame lands well before that
     await p;
-    expect(getResults()[0].chars[0]).toMatchObject({ name: 'Delphine', status: 'no-response', added: [], notAccepted: [1] });
+    expect(getResults()[0].chars[0]).toMatchObject({ name: 'Delphine', status: 'no-response', added: [1], notAccepted: [] });
   });
 });
 
