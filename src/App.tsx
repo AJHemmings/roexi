@@ -24,7 +24,16 @@ export default function App() {
     else el.style.removeProperty('zoom');
   }, [uiScale]);
   useEffect(() => { void applyWindowSize(getMode()); }, []);
-  useEffect(() => { let un = () => {}; void watchMaximized().then((u) => { un = u; }); return () => un(); }, []);
+  useEffect(() => {
+    // watchMaximized() resolves asynchronously; if this effect's cleanup fires first (React's
+    // mount→unmount→mount dev cycle does this), calling the still-default no-op `un` would leak
+    // the real listener registered a moment later. `cancelled` makes the late resolution unregister
+    // itself instead.
+    let cancelled = false;
+    let un = () => {};
+    void watchMaximized().then((u) => { if (cancelled) u(); else un = u; });
+    return () => { cancelled = true; un(); };
+  }, []);
   return (
     <MotionConfig reducedMotion="user">
       <div className="le-bg" />

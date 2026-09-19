@@ -28,7 +28,9 @@ async function loadPersisted() {
   try {
     const txt = await invoke<string>('read_text_file', { path: await appDataPath(FILE) });
     const obj = JSON.parse(txt);
-    if (obj && typeof obj === 'object') for (const [k, val] of Object.entries(obj)) persisted.set(k, val);
+    // Skip any key a component already wrote to before this async read resolved, or the disk's
+    // stale value would clobber a change made during the load race and then get saved back over it.
+    if (obj && typeof obj === 'object') for (const [k, val] of Object.entries(obj)) if (!touched.has(k)) persisted.set(k, val);
   } catch { /* none yet */ }
   persistLoaded = true;
   loadSubs.forEach((f) => f());

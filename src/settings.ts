@@ -7,6 +7,9 @@ const DEFAULTS: AppSettings = { uiScale: 1 };
 
 let cfg: AppSettings = { ...DEFAULTS };
 let started = false;
+// True once setSettings() has been called for real (as opposed to the initial default). Guards
+// against the async disk read in load() clobbering a change the user made before it resolved.
+let touched = false;
 const subs = new Set<() => void>();
 const notify = () => subs.forEach((s) => s());
 
@@ -16,10 +19,11 @@ async function load() {
   if (!inTauri) return;
   try {
     const p = JSON.parse(await invoke<string>('read_text_file', { path: await appDataPath('app_settings.json') }));
-    cfg = { uiScale: typeof p?.uiScale === 'number' && p.uiScale >= 0.5 && p.uiScale <= 3 ? p.uiScale : DEFAULTS.uiScale };
+    if (!touched) {
+      cfg = { uiScale: typeof p?.uiScale === 'number' && p.uiScale >= 0.5 && p.uiScale <= 3 ? p.uiScale : DEFAULTS.uiScale };
+    }
   } catch { /* none saved */ }
-  cfg = { ...cfg };
-  notify();
+  if (!touched) { cfg = { ...cfg }; notify(); }
 }
 void load();
 
@@ -29,7 +33,7 @@ async function save() {
 }
 
 export function getSettings() { return cfg; }
-export function setSettings(next: AppSettings) { cfg = next; notify(); void save(); }
+export function setSettings(next: AppSettings) { touched = true; cfg = next; notify(); void save(); }
 export function useSettings(): AppSettings {
   return useSyncExternalStore((cb) => { subs.add(cb); return () => subs.delete(cb); }, () => cfg, () => cfg);
 }

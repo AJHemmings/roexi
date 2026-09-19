@@ -1,8 +1,14 @@
-import { Component, type ReactNode } from 'react';
+import { Component, type ReactNode, type ErrorInfo } from 'react';
+import { logErr } from './errorLog';
 
 export class ErrorBoundary extends Component<{ children: ReactNode; label?: string }, { error: Error | null }> {
   state = { error: null as Error | null };
   static getDerivedStateFromError(error: Error) { return { error }; }
+  // Render-time errors are exactly the class of bug error.log exists to catch, so route them
+  // through the same logger as the window-level handlers in main.tsx.
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    void logErr('boundary', `${error.stack ?? error.message}\n${info.componentStack ?? ''}`);
+  }
   render() {
     if (this.state.error) {
       return (
