@@ -3,7 +3,7 @@ import type { CatalogEntry } from '../roe/types';
 
 const nameFor = (byId: Map<number, CatalogEntry>, id: number) => byId.get(id)?.n ?? `#${id}`;
 
-function addLine(c: AddCharResult, byId: Map<number, CatalogEntry>): string {
+export function addLine(c: AddCharResult, byId: Map<number, CatalogEntry>): string {
   if (c.status === 'offline') return `${c.name}: offline`;
   if (c.status === 'full') return `${c.name}: full (30 active already)`;
   if (c.status === 'no-response') return `${c.name}: no response from the addon (state may still have changed)`;
@@ -17,7 +17,7 @@ function addLine(c: AddCharResult, byId: Map<number, CatalogEntry>): string {
   return `${c.name}: ${parts.join(' · ') || 'nothing to do'}`;
 }
 
-function removeLine(c: RemoveCharResult, byId: Map<number, CatalogEntry>): string {
+export function removeLine(c: RemoveCharResult, byId: Map<number, CatalogEntry>): string {
   if (c.status === 'offline') return `${c.name}: offline`;
   if (c.status === 'no-response') return `${c.name}: no response from the addon (state may still have changed)`;
   if (c.status === 'addon-error') return `${c.name}: addon error`;

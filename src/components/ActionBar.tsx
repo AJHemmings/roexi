@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { TargetPicker, TargetPickerModal } from './TargetPicker';
+import { computeRemoveDefault } from '../roe/targets';
 import type { KnownChar } from '../roe/types';
 
 export function ActionBar({ known, selectedIds, showRemove, onAdd, onRemove, onClear }: {
@@ -12,9 +13,13 @@ export function ActionBar({ known, selectedIds, showRemove, onAdd, onRemove, onC
 }) {
   const [targets, setTargets] = useState<string[]>(() => known.filter((c) => c.online).map((c) => c.name));
   const [removeModal, setRemoveModal] = useState(false);
+  // The caller (RecordsView) must always render this component unconditionally, never behind
+  // `{selectedIds.length > 0 && <ActionBar ... />}`. Returning null here (rather than the caller
+  // unmounting us) is what keeps this component at a stable position in the tree across selection
+  // round-trips through zero, so `targets` survives instead of resetting to "every online character".
   if (selectedIds.length === 0) return null;
 
-  const removeDefault = known.filter((c) => c.online && selectedIds.some((id) => c.active.some((a) => a.id === id))).map((c) => c.name);
+  const removeDefault = computeRemoveDefault(known, selectedIds);
 
   return (
     <div className="sticky bottom-0 z-10 bg-surface-raised border-t border-line px-3.5 py-3 flex flex-col gap-2">
