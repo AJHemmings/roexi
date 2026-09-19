@@ -7,6 +7,9 @@ dist-ssr
 src-tauri/target
 src-tauri/gen
 
+# git worktrees for isolated feature branches; never committed
+.worktrees/
+
 # downloaded wiki pages used by the catalog build; never committed
 data/cache/
 
