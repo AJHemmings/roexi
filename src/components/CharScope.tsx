@@ -11,17 +11,30 @@ const STICKY_KEY = 'records.scope';
  * required because characters connect asynchronously after app start; a default captured once
  * at mount would go stale for anyone who hadn't loaded yet.
  */
+export function resolveScopeNames(names: string[] | null, known: KnownChar[]): string[] {
+  if (names === null) return known.map((c) => c.name);
+  const knownNames = new Set(known.map((c) => c.name));
+  return names.filter((n) => knownNames.has(n));
+}
+
+/** Toggles `name` in/out of scope, materializing from `known` first if scope is still the null sentinel. */
+export function toggleScopeName(names: string[] | null, known: KnownChar[], name: string): string[] {
+  const base = names === null ? known.map((c) => c.name) : names;
+  return base.includes(name) ? base.filter((n) => n !== name) : [...base, name];
+}
+
+/**
+ * `selectAll` restores the null sentinel rather than freezing today's roster into an array -
+ * that keeps "All" meaning "everyone, including characters that connect later," consistent with
+ * what null means everywhere else in this hook.
+ */
 export function useCharScope(): { known: KnownChar[]; scope: KnownChar[]; scopeNames: string[]; toggle: (name: string) => void; selectAll: () => void } {
   const known = useKnownCharacters();
   const [names, setNames] = useStickyPersisted<string[] | null>(STICKY_KEY, null);
-  const knownNames = new Set(known.map((c) => c.name));
-  const scopeNames = names === null ? known.map((c) => c.name) : names.filter((n) => knownNames.has(n));
+  const scopeNames = resolveScopeNames(names, known);
 
-  const toggle = (name: string) => setNames((prev) => {
-    const base = prev === null ? known.map((c) => c.name) : prev;
-    return base.includes(name) ? base.filter((n) => n !== name) : [...base, name];
-  });
-  const selectAll = () => setNames(known.map((c) => c.name));
+  const toggle = (name: string) => setNames((prev) => toggleScopeName(prev, known, name));
+  const selectAll = () => setNames(null);
 
   return { known, scope: known.filter((c) => scopeNames.includes(c.name)), scopeNames, toggle, selectAll };
 }
