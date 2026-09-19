@@ -1,6 +1,7 @@
 // Runtime catalog loader. buildCatalog is pure and tested directly; loadCatalog/useCatalog
 // are the thin fetch+hook wrapper that bridge/index.ts also uses this pattern for.
 import { useEffect, useState } from 'react';
+import { isAutoId } from './types';
 import type { CatalogEntry } from './types';
 
 const UNCATEGORIZED = 'Uncategorized';
@@ -41,7 +42,7 @@ export function buildCatalog(entries: CatalogEntry[]): Catalog {
     return entries.filter((e) => e.n.toLowerCase().includes(needle));
   }
 
-  const isAddable = (id: number): boolean => !byId.get(id)?.auto;
+  const isAddable = (id: number): boolean => !isAutoId(id);
 
   return { entries, byId, tree, search, isAddable };
 }

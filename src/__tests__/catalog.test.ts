@@ -48,4 +48,8 @@ describe('buildCatalog', () => {
     expect(catalog.isAddable(1)).toBe(true);
     expect(catalog.isAddable(4013)).toBe(false);
   });
+
+  it('isAddable is true for an id not in the catalog at all, since it only checks the auto range', () => {
+    expect(catalog.isAddable(99999)).toBe(true);
+  });
 });
