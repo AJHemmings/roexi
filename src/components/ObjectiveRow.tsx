@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Collapse } from '../overlay';
 import type { CatalogEntry } from '../roe/types';
 
-export function ObjectiveRow({ id, entry, checkbox, checked, onToggle, countLabel, badges, chips, expanded }: {
+export function ObjectiveRow({ id, entry, checkbox, checked, onToggle, countLabel, badges, chips, actions, expanded }: {
   id: number;
   entry?: CatalogEntry;
   checkbox: boolean;
@@ -11,6 +11,10 @@ export function ObjectiveRow({ id, entry, checkbox, checked, onToggle, countLabe
   countLabel?: string;
   badges?: ReactNode;
   chips?: ReactNode;
+  /** Rendered after everything else, at the true trailing edge of the row — for a per-row overflow
+   * menu or similar action control. Kept separate from `badges` (which Library uses for small
+   * static tags right after the title) so adding one doesn't reposition the other. */
+  actions?: ReactNode;
   expanded?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -29,6 +33,7 @@ export function ObjectiveRow({ id, entry, checkbox, checked, onToggle, countLabe
         {badges}
         {chips}
         {countLabel && <span className="text-[11px] tabular-nums text-fg-4 shrink-0">{countLabel}</span>}
+        {actions}
       </div>
       {expanded && <Collapse open={open} className="px-3.5 pb-2.5">{expanded}</Collapse>}
     </div>
