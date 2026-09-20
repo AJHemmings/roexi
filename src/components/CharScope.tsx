@@ -39,8 +39,14 @@ export function useCharScope(): { known: KnownChar[]; scope: KnownChar[]; scopeN
   return { known, scope: known.filter((c) => scopeNames.includes(c.name)), scopeNames, toggle, selectAll };
 }
 
-export function CharScopeBar() {
-  const { known, scopeNames, toggle, selectAll } = useCharScope();
+/**
+ * Takes its data as props rather than calling useCharScope() itself: useStickyPersisted's state
+ * is per-hook-instance local React state, not a shared external store, so a second independent
+ * call here would desync from whatever called useCharScope() to get `scope` for the tabs below —
+ * toggling a chip would re-render this component but leave the other instance (and therefore the
+ * rows it drives) stale. There must be exactly one useCharScope() call per screen.
+ */
+export function CharScopeBar({ known, scopeNames, toggle, selectAll }: { known: KnownChar[]; scopeNames: string[]; toggle: (name: string) => void; selectAll: () => void }) {
   if (known.length === 0) return null;
   const allSelected = scopeNames.length === known.length;
   return (
