@@ -29,23 +29,6 @@ export function RowMenu({ id, known, charSelected, onOpenPicker }: {
   const menu = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ right: number; top: number; up: boolean } | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const r = btn.current?.getBoundingClientRect();
-    if (r) {
-      const menuH = 116;
-      const up = r.bottom + menuH > window.innerHeight && r.top > menuH;
-      setPos({ right: window.innerWidth - r.right, top: up ? r.top : r.bottom, up });
-    }
-    const onScroll = (e: Event) => { if (menu.current?.contains(e.target as Node)) return; setOpen(false); };
-    const onResize = () => setOpen(false);
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
-    window.addEventListener('scroll', onScroll, true);
-    window.addEventListener('resize', onResize);
-    window.addEventListener('keydown', onKey);
-    return () => { window.removeEventListener('scroll', onScroll, true); window.removeEventListener('resize', onResize); window.removeEventListener('keydown', onKey); };
-  }, [open]);
-
   const removeNames = computeRemoveDefault(known, [id]);
   const removeTargets = known.filter((c) => removeNames.includes(c.name));
   const canRemoveAll = removeTargets.length > 0;
@@ -58,6 +41,23 @@ export function RowMenu({ id, known, charSelected, onOpenPicker }: {
   }
   items.push({ key: 'multi', label: 'Remove from multiple', disabled: !canRemoveAll, onClick: onOpenPicker });
   items.push({ key: 'all', label: 'Remove from all', disabled: !canRemoveAll, onClick: () => void runRemove(removeTargets, [id]) });
+
+  useEffect(() => {
+    if (!open) return;
+    const r = btn.current?.getBoundingClientRect();
+    if (r) {
+      const menuH = items.length * 28 + 8;
+      const up = r.bottom + menuH > window.innerHeight && r.top > menuH;
+      setPos({ right: window.innerWidth - r.right, top: up ? r.top : r.bottom, up });
+    }
+    const onScroll = (e: Event) => { if (menu.current?.contains(e.target as Node)) return; setOpen(false); };
+    const onResize = () => setOpen(false);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('scroll', onScroll, true); window.removeEventListener('resize', onResize); window.removeEventListener('keydown', onKey); };
+  }, [open, items.length]);
 
   const menuStyle: CSSProperties = pos ? { right: pos.right, top: pos.up ? undefined : pos.top + 4, bottom: pos.up ? window.innerHeight - pos.top + 4 : undefined } : {};
 

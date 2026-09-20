@@ -29,10 +29,12 @@ function EmptyBar({ online, big }: { online: boolean; big: boolean }) {
 }
 
 /** Replaces CharChips's text pills for the Active tab only (redesign §4) — CharChips.tsx itself is
- * untouched and still used by Library. One bar per scoped character; a single-character scope gets
- * one larger bar (`big`) instead of the small multi-character size. */
-export function ActiveProgress({ id, scope, entry }: { id: number; scope: KnownChar[]; entry?: CatalogEntry }) {
-  const big = scope.length === 1;
+ * untouched and still used by Library. One bar per scoped character; single-character MODE gets
+ * one larger bar (`big`) instead of the small multi-character size. Mode is read directly off
+ * `charSelected`, never inferred from `scope.length` — a roster of exactly one known character
+ * left on "All" (`charSelected === null`) must still get the small/multi treatment. */
+export function ActiveProgress({ id, scope, charSelected, entry }: { id: number; scope: KnownChar[]; charSelected: string | null; entry?: CatalogEntry }) {
+  const big = charSelected !== null;
   return (
     <div className="flex flex-wrap items-center gap-2">
       {scope.map((c) => {

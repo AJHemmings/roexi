@@ -8,6 +8,9 @@ import { computeRemoveDefault } from '../roe/targets';
 import { TargetPickerModal } from '../components/TargetPicker';
 import type { KnownChar, CatalogEntry } from '../roe/types';
 
+/** Deliberately NOT consolidated with RowMenu's Remove actions: this is a separate surface for
+ * viewing per-character detail with a quick inline remove, while RowMenu handles global remove
+ * actions across the roster. Keep both — don't "clean up" this duplication. */
 function ExpandedActive({ id, scope, entry }: { id: number; scope: KnownChar[]; entry?: CatalogEntry }) {
   const withIt = scope.filter((c) => c.active.some((a) => a.id === id));
   return (
@@ -61,7 +64,7 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
           <ObjectiveRow key={id} id={id} entry={entry} checkbox checked={selected.includes(id)} onToggle={() => onToggle(id)}
             countLabel={`${count}/${scope.length}`}
             badges={<RowMenu id={id} known={known} charSelected={charSelected} onOpenPicker={() => setRowRemoveId(id)} />}
-            chips={<ActiveProgress id={id} scope={scope} entry={entry} />}
+            chips={<ActiveProgress id={id} scope={scope} charSelected={charSelected} entry={entry} />}
             expanded={<ExpandedActive id={id} scope={scope} entry={entry} />} />
         );
       })}
