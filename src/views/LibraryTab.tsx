@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useSticky } from '../sticky';
 import { Collapse } from '../overlay';
 import { ObjectiveRow } from '../components/ObjectiveRow';
+import { CharChips } from '../components/CharChips';
 import { doneState } from '../roe/bitmap';
 import { formatProgress } from '../roe/format';
 import type { Catalog } from '../roe/catalog';
@@ -93,10 +94,11 @@ export default function LibraryTab({ catalog, scope, query, selected, onToggle }
                             const dim = entry?.repeat === false && scope.length > 0 && scope.every((c) => doneState(c, id) === 'done');
                             return (
                               <div key={id} className={dim ? 'opacity-50' : undefined}>
-                                <ObjectiveRow id={id} entry={entry} scope={scope} checkbox={!entry?.auto}
+                                <ObjectiveRow id={id} entry={entry} checkbox={!entry?.auto}
                                   checked={selected.includes(id)} onToggle={() => onToggle(id)}
                                   countLabel={`active ${activeCount}/${scope.length} · done ${doneCount}/${eligible.length}`}
                                   badges={<Badges entry={entry} />}
+                                  chips={<CharChips id={id} scope={scope} entry={entry} />}
                                   expanded={<ExpandedLibrary id={id} entry={entry} scope={scope} />} />
                               </div>
                             );

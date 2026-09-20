@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ObjectiveRow } from '../components/ObjectiveRow';
+import { CharChips } from '../components/CharChips';
 import { runRemove } from '../roe/batch';
 import { formatProgress } from '../roe/format';
 import { TargetPickerModal } from '../components/TargetPicker';
@@ -53,13 +54,14 @@ export default function ActiveTab({ scope, byId, query, selected, onToggle }: {
         const entry = byId.get(id);
         const count = scope.filter((c) => c.active.some((a) => a.id === id)).length;
         return (
-          <ObjectiveRow key={id} id={id} entry={entry} scope={scope} checkbox checked={selected.includes(id)} onToggle={() => onToggle(id)}
+          <ObjectiveRow key={id} id={id} entry={entry} checkbox checked={selected.includes(id)} onToggle={() => onToggle(id)}
             countLabel={`${count}/${scope.length}`}
             badges={
               <button onClick={(e) => { e.stopPropagation(); setRowRemoveId(id); }} aria-label="Remove from characters" className="le-tap text-fg-4 hover:text-red-300">
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6" /></svg>
               </button>
             }
+            chips={<CharChips id={id} scope={scope} entry={entry} />}
             expanded={<ExpandedActive id={id} scope={scope} entry={entry} />} />
         );
       })}

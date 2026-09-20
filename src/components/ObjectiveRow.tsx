@@ -1,17 +1,16 @@
 import { useState, type ReactNode } from 'react';
 import { Collapse } from '../overlay';
-import { CharChips } from './CharChips';
-import type { CatalogEntry, KnownChar } from '../roe/types';
+import type { CatalogEntry } from '../roe/types';
 
-export function ObjectiveRow({ id, entry, scope, checkbox, checked, onToggle, countLabel, badges, expanded }: {
+export function ObjectiveRow({ id, entry, checkbox, checked, onToggle, countLabel, badges, chips, expanded }: {
   id: number;
   entry?: CatalogEntry;
-  scope: KnownChar[];
   checkbox: boolean;
   checked: boolean;
   onToggle: () => void;
   countLabel?: string;
   badges?: ReactNode;
+  chips?: ReactNode;
   expanded?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -28,7 +27,7 @@ export function ObjectiveRow({ id, entry, scope, checkbox, checked, onToggle, co
           <svg viewBox="0 0 24 24" style={{ transition: 'transform var(--dur-fast) var(--ease-out)' }} className={`w-3.5 h-3.5 shrink-0 text-fg-4 ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
         </button>
         {badges}
-        <CharChips id={id} scope={scope} entry={entry} />
+        {chips}
         {countLabel && <span className="text-[11px] tabular-nums text-fg-4 shrink-0">{countLabel}</span>}
       </div>
       {expanded && <Collapse open={open} className="px-3.5 pb-2.5">{expanded}</Collapse>}
