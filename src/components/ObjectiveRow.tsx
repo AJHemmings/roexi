@@ -27,7 +27,6 @@ export function ObjectiveRow({ id, entry, checkbox, checked, onToggle, countLabe
         )}
         <button type="button" onClick={() => setOpen((o) => !o)} className="le-tap flex-1 min-w-0 flex items-center gap-2 text-left">
           <span className="text-[13px] text-fg-2 truncate">{entry?.n ?? `Unknown #${id}`}</span>
-          <span className="text-[10px] text-fg-4 shrink-0">#{id}</span>
           <svg viewBox="0 0 24 24" style={{ transition: 'transform var(--dur-fast) var(--ease-out)' }} className={`w-3.5 h-3.5 shrink-0 text-fg-4 ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
         </button>
         {badges}
