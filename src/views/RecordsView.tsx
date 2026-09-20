@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useCatalog } from '../roe/catalog';
 import { toggleId } from '../roe/selection';
 import { runAdd, runRemove } from '../roe/batch';
-import { useCharScope, CharScopeBar } from '../components/CharScope';
+import { useCharScope, CharScopeSelect } from '../components/CharScope';
 import { ActionBar } from '../components/ActionBar';
 import { ResultCards } from '../components/ResultCard';
 import { SearchInput, SectionTabs } from '../ui';
@@ -13,7 +13,7 @@ type Tab = 'active' | 'library';
 
 export default function RecordsView() {
   const catalog = useCatalog();
-  const { known, scope, scopeNames, toggle: toggleScope, selectAll } = useCharScope();
+  const { known, scope, charSelected, setCharSelected } = useCharScope();
   const [tab, setTab] = useState<Tab>('active');
   const [query, setQuery] = useState('');
   const [activeSel, setActiveSel] = useState<number[]>([]);
@@ -44,7 +44,7 @@ export default function RecordsView() {
         <div className="flex items-center gap-2">
           <SearchInput value={query} onChange={setQuery} placeholder="Filter objectives…" />
         </div>
-        <CharScopeBar known={known} scopeNames={scopeNames} toggle={toggleScope} selectAll={selectAll} />
+        <CharScopeSelect known={known} charSelected={charSelected} setCharSelected={setCharSelected} />
         <SectionTabs value={tab} onChange={setTab} tabs={[{ id: 'active', label: 'Active' }, { id: 'library', label: 'Library' }]} />
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-3">

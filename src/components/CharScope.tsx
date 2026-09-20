@@ -1,63 +1,60 @@
 import { useStickyPersisted } from '../sticky';
 import { useKnownCharacters } from '../bridge';
-import { Chip } from '../ui';
+import { Select } from '../ui';
 import type { KnownChar } from '../roe/types';
 
-const STICKY_KEY = 'records.scope';
+const STICKY_KEY = 'records.scope.v2';
+
+/** Sentinel Select value for "All" — Select's value type is a plain string, so null (the real
+ * "All" sentinel used everywhere else in this hook) can't be handed to it directly. No real
+ * character name is ever empty, so this can't collide. */
+const ALL = '';
 
 /**
- * null means "not customized yet" -> defaults to every known character. A concrete array is
- * always used once the player touches a chip. null (not an eagerly-computed default array) is
- * required because characters connect asynchronously after app start; a default captured once
- * at mount would go stale for anyone who hadn't loaded yet.
+ * Resolves the persisted selection to the actual scope: null ("All") -> every known character;
+ * a name -> just that character, or [] if they've since been forgotten (e.g. removed while
+ * offline). Exactly one option is ever selected — no arbitrary multi-character subsets.
  */
-export function resolveScopeNames(names: string[] | null, known: KnownChar[]): string[] {
-  if (names === null) return known.map((c) => c.name);
-  const knownNames = new Set(known.map((c) => c.name));
-  return names.filter((n) => knownNames.has(n));
-}
-
-/** Toggles `name` in/out of scope, materializing from `known` first if scope is still the null sentinel. */
-export function toggleScopeName(names: string[] | null, known: KnownChar[], name: string): string[] {
-  const base = names === null ? known.map((c) => c.name) : names;
-  return base.includes(name) ? base.filter((n) => n !== name) : [...base, name];
+export function resolveScope(selected: string | null, known: KnownChar[]): KnownChar[] {
+  if (selected === null) return known;
+  return known.filter((c) => c.name === selected);
 }
 
 /**
- * `selectAll` restores the null sentinel rather than freezing today's roster into an array -
- * that keeps "All" meaning "everyone, including characters that connect later," consistent with
- * what null means everywhere else in this hook.
+ * `selected` persists as null ("All") or a character name. null is a real sentinel, not an absent
+ * value — a character connecting later must still be included in "All" — so it is never eagerly
+ * resolved into a snapshot at mount.
  */
-export function useCharScope(): { known: KnownChar[]; scope: KnownChar[]; scopeNames: string[]; toggle: (name: string) => void; selectAll: () => void } {
+export function useCharScope(): { known: KnownChar[]; scope: KnownChar[]; charSelected: string | null; setCharSelected: (v: string | null) => void } {
   const known = useKnownCharacters();
-  const [names, setNames] = useStickyPersisted<string[] | null>(STICKY_KEY, null);
-  const scopeNames = resolveScopeNames(names, known);
-
-  const toggle = (name: string) => setNames((prev) => toggleScopeName(prev, known, name));
-  const selectAll = () => setNames(null);
-
-  return { known, scope: known.filter((c) => scopeNames.includes(c.name)), scopeNames, toggle, selectAll };
+  const [charSelected, setCharSelected] = useStickyPersisted<string | null>(STICKY_KEY, null);
+  return { known, scope: resolveScope(charSelected, known), charSelected, setCharSelected };
 }
 
 /**
- * Takes its data as props rather than calling useCharScope() itself: useStickyPersisted's state
- * is per-hook-instance local React state, not a shared external store, so a second independent
- * call here would desync from whatever called useCharScope() to get `scope` for the tabs below —
- * toggling a chip would re-render this component but leave the other instance (and therefore the
- * rows it drives) stale. There must be exactly one useCharScope() call per screen.
+ * Takes its data as props rather than calling useCharScope() itself, for the same reason the old
+ * CharScopeBar did: useStickyPersisted's state is per-hook-instance local React state, not a
+ * shared external store, so a second independent call here would desync from whatever called
+ * useCharScope() to get `scope` for the tabs below. There must be exactly one useCharScope() call
+ * per screen.
  */
-export function CharScopeBar({ known, scopeNames, toggle, selectAll }: { known: KnownChar[]; scopeNames: string[]; toggle: (name: string) => void; selectAll: () => void }) {
+export function CharScopeSelect({ known, charSelected, setCharSelected }: { known: KnownChar[]; charSelected: string | null; setCharSelected: (v: string | null) => void }) {
   if (known.length === 0) return null;
-  const allSelected = scopeNames.length === known.length;
+  const onlineByName = new Map(known.map((c) => [c.name, c.online]));
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <Chip on={allSelected} onChange={selectAll}>All</Chip>
-      {known.map((c) => (
-        <Chip key={c.name} on={scopeNames.includes(c.name)} onChange={() => toggle(c.name)}>
-          <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle ${c.online ? 'bg-emerald-400' : 'bg-fg-4'}`} />
-          {c.name}
-        </Chip>
-      ))}
-    </div>
+    <Select
+      full
+      value={charSelected ?? ALL}
+      onChange={(v) => setCharSelected(v === ALL ? null : v)}
+      options={[ALL, ...known.map((c) => c.name)]}
+      renderOption={(v) => v === ALL ? (
+        <span className="font-semibold">All</span>
+      ) : (
+        <span className="flex items-center gap-1.5 truncate">
+          <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${onlineByName.get(v) ? 'bg-emerald-400' : 'bg-fg-4'}`} />
+          <span className="truncate">{v}</span>
+        </span>
+      )}
+    />
   );
 }
