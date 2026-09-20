@@ -50,7 +50,7 @@ export default function RecordsView() {
       <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-3">
         <ResultCards byId={catalog.byId} />
         {tab === 'active'
-          ? <ActiveTab scope={scope} byId={catalog.byId} query={query} selected={activeSel} onToggle={toggle} />
+          ? <ActiveTab known={known} scope={scope} charSelected={charSelected} byId={catalog.byId} query={query} selected={activeSel} onToggle={toggle} />
           : <LibraryTab catalog={catalog} scope={scope} query={query} selected={librarySel} onToggle={toggle} />}
       </div>
       <ActionBar known={scope} selectedIds={selected} showRemove={tab === 'active'}
