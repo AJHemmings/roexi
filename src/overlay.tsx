@@ -15,14 +15,20 @@ export function Modal({ onClose, children, panelClass = 'w-[min(94vw,460px)] max
   return createPortal(
     <AnimatePresence onExitComplete={onClose}>
       {open && (
-        <motion.div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }} onClick={backdropClose ? close : undefined}>
+        <motion.div className="absolute inset-0 z-50 grid place-items-center bg-black/50 p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }} onClick={backdropClose ? close : undefined}>
           <motion.div className={`rounded-xl border border-line bg-surface-raised shadow-xl flex flex-col ${panelClass}`} initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }} transition={{ duration: 0.2, ease: EASE_OUT }} onClick={(e) => e.stopPropagation()}>
             {typeof children === 'function' ? children(close) : children}
           </motion.div>
         </motion.div>
       )}
     </AnimatePresence>,
-    document.body,
+    // Scoped to #main-content (the app's content area, set up in App.tsx), not document.body: a
+    // modal should only ever cover that area, never the custom title bar (drag region, min/max/
+    // close) or the nav rail. Using position:absolute inset-0 against a position:relative ancestor
+    // (rather than computing pixel offsets in JS) keeps this correct automatically as that ancestor
+    // resizes — including from things that don't fire a window `resize` event, like the uiScale
+    // `zoom` setting in settings.ts — with no listener needed.
+    document.getElementById('main-content') ?? document.body,
   );
 }
 
