@@ -14,18 +14,18 @@ export function CreateSetModal({ ids, onSaved, onClose }: { ids: number[]; onSav
   return (
     <Modal onClose={onClose}>
       {(close) => (
-        <div className="p-4 flex flex-col gap-3">
+        <form onSubmit={(e) => { e.preventDefault(); if (!name || validateSetName(sets, name)) return; createSet(name, ids); onSaved(); close(); }}
+          className="p-4 flex flex-col gap-3">
           <div className="text-[13px] font-bold text-fg">Create new set</div>
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Set name"
             className="w-full px-3 py-2 text-[13px] rounded-md bg-field border border-line text-fg placeholder:text-fg-4 focus:outline-none focus:border-accent" />
           {error && <div className="text-[11px] text-red-300/90">{error}</div>}
           <div className="flex justify-end gap-2 pt-1">
-            <button onClick={close} className="le-tap px-3 py-1.5 text-[12px] font-semibold rounded-md border border-line bg-field text-fg-3 hover:text-fg-2 transition-colors">Cancel</button>
-            <button disabled={!name || !!validateSetName(sets, name)}
-              onClick={() => { createSet(name, ids); onSaved(); close(); }}
+            <button type="button" onClick={close} className="le-tap px-3 py-1.5 text-[12px] font-semibold rounded-md border border-line bg-field text-fg-3 hover:text-fg-2 transition-colors">Cancel</button>
+            <button type="submit" disabled={!name || !!validateSetName(sets, name)}
               className="le-tap px-3 py-1.5 text-[12px] font-bold rounded-md bg-accent text-on-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Save</button>
           </div>
-        </div>
+        </form>
       )}
     </Modal>
   );
