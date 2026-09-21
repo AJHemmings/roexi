@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSets, markApplied } from '../roe/sets';
+import { useSets, markApplied, deleteSet } from '../roe/sets';
 import { useKnownCharacters } from '../bridge';
 import { useCatalog } from '../roe/catalog';
 import { resolveTargets, computeRemoveDefault } from '../roe/targets';
@@ -14,6 +14,7 @@ export default function SetsView() {
   const catalog = useCatalog();
   const [applyId, setApplyId] = useState<string | null>(null);
   const [removeId, setRemoveId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   useNowTick();
 
   if (sets.length === 0) {
@@ -47,6 +48,18 @@ export default function SetsView() {
               className="le-tap px-3 py-1.5 text-[12px] font-bold rounded-md bg-accent text-on-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Apply</button>
             <button disabled={computeRemoveDefault(known, s.ids).length === 0} onClick={() => setRemoveId(s.id)}
               className="le-tap px-3 py-1.5 text-[12px] font-bold rounded-md bg-field border border-line text-fg-2 hover:text-fg transition-colors">Remove</button>
+            <div className="ml-auto flex items-center gap-2">
+              {confirmDelete === s.id ? (
+                <>
+                  <button onClick={() => setConfirmDelete(null)} className="px-2 py-1 text-[11px] font-semibold rounded-md border border-line bg-field text-fg-3 hover:text-fg-2 transition-colors">Cancel</button>
+                  <button onClick={() => { deleteSet(s.id); setConfirmDelete(null); }} className="px-2 py-1 text-[11px] font-semibold rounded-md border border-red-500/40 bg-red-500/15 text-red-300 hover:bg-red-500/25 transition-colors">Delete</button>
+                </>
+              ) : (
+                <button onClick={() => setConfirmDelete(s.id)} aria-label={`Delete ${s.name}`} className="le-tap grid place-items-center w-7 h-7 rounded-md text-fg-4 hover:text-red-300 hover:bg-red-500/10 transition-colors">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       ))}
