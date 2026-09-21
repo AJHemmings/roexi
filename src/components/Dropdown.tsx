@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type CSSProperties, type ReactNode } from 'react';
+import { useState, useRef, useEffect, type CSSProperties, type ReactNode, type MouseEvent, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -14,7 +14,7 @@ export type DropdownItem = { key: string; label: string; disabled?: boolean; onC
  * trigger wiring, click-away dismissal, or item-list rendering, so building this on top of it
  * would mean re-adding most of what Dropdown provides anyway. */
 export function Dropdown({ trigger, items, menuWidth = 'w-48' }: {
-  trigger: (props: { onClick: (e: React.MouseEvent) => void; ref: React.RefObject<HTMLButtonElement | null> }) => ReactNode;
+  trigger: (props: { onClick: (e: MouseEvent) => void; ref: RefObject<HTMLButtonElement | null> }) => ReactNode;
   items: DropdownItem[];
   menuWidth?: string;
 }) {
