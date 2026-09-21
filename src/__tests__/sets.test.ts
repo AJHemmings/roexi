@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateSetName, mergeIds } from '../roe/sets';
+import { validateSetName, mergeIds, isValidSet } from '../roe/sets';
 import type { RoeSet } from '../roe/types';
 
 const set = (name: string, over: Partial<RoeSet> = {}): RoeSet => ({
@@ -46,5 +46,27 @@ describe('mergeIds', () => {
 
   it('dedupes ids already present multiple times in the input', () => {
     expect(mergeIds([1], [1, 1, 2])).toEqual([1, 2]);
+  });
+});
+
+describe('isValidSet', () => {
+  it('accepts a well-formed set', () => {
+    expect(isValidSet(set('Weekly Grind'))).toBe(true);
+  });
+
+  it('accepts a well-formed set missing the optional lastAppliedAt', () => {
+    const { lastAppliedAt: _lastAppliedAt, ...rest } = { ...set('Weekly Grind'), lastAppliedAt: 123 };
+    expect(isValidSet(rest)).toBe(true);
+  });
+
+  it('rejects an entry missing ids', () => {
+    const { ids: _ids, ...rest } = set('Weekly Grind');
+    expect(isValidSet(rest)).toBe(false);
+  });
+
+  it('rejects non-object input', () => {
+    expect(isValidSet(null)).toBe(false);
+    expect(isValidSet('Weekly Grind')).toBe(false);
+    expect(isValidSet(42)).toBe(false);
   });
 });

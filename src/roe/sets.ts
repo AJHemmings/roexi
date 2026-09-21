@@ -16,6 +16,15 @@ export function mergeIds(existing: number[], added: number[]): number[] {
   return [...new Set([...existing, ...added])];
 }
 
+// Pure — guards load() against a malformed sets.json entry (partial write, hand-edit) crashing
+// downstream code that assumes a RoeSet's shape (s.ids.length, s.name.toLowerCase(), etc).
+// lastAppliedAt is intentionally not checked: it's optional, so its absence is valid.
+export function isValidSet(x: unknown): x is RoeSet {
+  const s = x as Partial<RoeSet> | null;
+  return !!s && typeof s.id === 'string' && typeof s.name === 'string' && Array.isArray(s.ids)
+    && typeof s.createdAt === 'number' && typeof s.updatedAt === 'number';
+}
+
 let sets: RoeSet[] = [];
 let started = false;
 // Mirrors settings.ts: guards the async disk read in load() from clobbering a change made before
@@ -30,7 +39,7 @@ async function load() {
   if (!inTauri) return;
   try {
     const raw: unknown = JSON.parse(await invoke<string>('read_text_file', { path: await appDataPath('sets.json') }));
-    if (!touched && Array.isArray(raw)) sets = raw as RoeSet[];
+    if (!touched && Array.isArray(raw)) sets = raw.filter(isValidSet);
   } catch { /* none saved */ }
   if (!touched) notify();
 }
