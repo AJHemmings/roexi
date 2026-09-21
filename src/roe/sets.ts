@@ -30,14 +30,21 @@ async function load() {
   if (!inTauri) return;
   try {
     const raw: unknown = JSON.parse(await invoke<string>('read_text_file', { path: await appDataPath('sets.json') }));
-    if (!touched && Array.isArray(raw)) { sets = raw as RoeSet[]; notify(); }
+    if (!touched && Array.isArray(raw)) sets = raw as RoeSet[];
   } catch { /* none saved */ }
+  if (!touched) notify();
 }
 void load();
 
+// Serializes writes so overlapping commit() calls resolve on disk in call order, not resolution
+// order — an ordering fix (not a throttle), unlike bridge/index.ts's schedulePersist debounce.
+let writeQueue: Promise<void> = Promise.resolve();
 async function save() {
   if (!inTauri) return;
-  try { await invoke('write_text_file', { path: await appDataPath('sets.json'), contents: JSON.stringify(sets) }); } catch { /* ignore */ }
+  writeQueue = writeQueue.then(async () => {
+    try { await invoke('write_text_file', { path: await appDataPath('sets.json'), contents: JSON.stringify(sets) }); } catch { /* ignore */ }
+  });
+  await writeQueue;
 }
 
 function commit(next: RoeSet[]) { touched = true; sets = next; notify(); void save(); }
