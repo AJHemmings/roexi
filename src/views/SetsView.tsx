@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useSets, markApplied } from '../roe/sets';
 import { useKnownCharacters } from '../bridge';
 import { useCatalog } from '../roe/catalog';
-import { resolveTargets } from '../roe/targets';
-import { runAdd } from '../roe/batch';
+import { resolveTargets, computeRemoveDefault } from '../roe/targets';
+import { runAdd, runRemove } from '../roe/batch';
 import { TargetPickerModal } from '../components/TargetPicker';
 import { ResultCards } from '../components/ResultCard';
 import { relTime, useNowTick } from '../reltime';
@@ -13,6 +13,7 @@ export default function SetsView() {
   const known = useKnownCharacters();
   const catalog = useCatalog();
   const [applyId, setApplyId] = useState<string | null>(null);
+  const [removeId, setRemoveId] = useState<string | null>(null);
   useNowTick();
 
   if (sets.length === 0) {
@@ -44,6 +45,8 @@ export default function SetsView() {
           <div className="flex items-center gap-2">
             <button disabled={onlineKnown.length === 0} onClick={() => setApplyId(s.id)}
               className="le-tap px-3 py-1.5 text-[12px] font-bold rounded-md bg-accent text-on-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Apply</button>
+            <button disabled={computeRemoveDefault(known, s.ids).length === 0} onClick={() => setRemoveId(s.id)}
+              className="le-tap px-3 py-1.5 text-[12px] font-bold rounded-md bg-field border border-line text-fg-2 hover:text-fg transition-colors">Remove</button>
           </div>
         </div>
       ))}
@@ -53,6 +56,14 @@ export default function SetsView() {
           <TargetPickerModal known={known} defaultSelected={onlineKnown.map((c) => c.name)} confirmLabel="Apply"
             onClose={() => setApplyId(null)}
             onConfirm={(targets) => { void runAdd(resolveTargets(known, targets), s.ids, catalog.byId); markApplied(s.id); }} />
+        );
+      })()}
+      {removeId && (() => {
+        const s = sets.find((x) => x.id === removeId)!;
+        return (
+          <TargetPickerModal known={known} defaultSelected={computeRemoveDefault(known, s.ids)} confirmLabel="Remove"
+            onClose={() => setRemoveId(null)}
+            onConfirm={(targets) => void runRemove(resolveTargets(known, targets), s.ids)} />
         );
       })()}
     </div>
