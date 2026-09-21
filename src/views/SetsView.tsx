@@ -6,6 +6,7 @@ import { resolveTargets, computeRemoveDefault } from '../roe/targets';
 import { runAdd, runRemove } from '../roe/batch';
 import { TargetPickerModal } from '../components/TargetPicker';
 import { ResultCards } from '../components/ResultCard';
+import { EditSetModal } from '../components/SetModals';
 import { relTime, useNowTick } from '../reltime';
 
 export default function SetsView() {
@@ -14,6 +15,7 @@ export default function SetsView() {
   const catalog = useCatalog();
   const [applyId, setApplyId] = useState<string | null>(null);
   const [removeId, setRemoveId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   useNowTick();
 
@@ -48,6 +50,8 @@ export default function SetsView() {
               className="le-tap px-3 py-1.5 text-[12px] font-bold rounded-md bg-accent text-on-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Apply</button>
             <button disabled={computeRemoveDefault(known, s.ids).length === 0} onClick={() => setRemoveId(s.id)}
               className="le-tap px-3 py-1.5 text-[12px] font-bold rounded-md bg-field border border-line text-fg-2 hover:text-fg transition-colors">Remove</button>
+            <button onClick={() => setEditId(s.id)}
+              className="le-tap px-3 py-1.5 text-[12px] font-bold rounded-md bg-field border border-line text-fg-2 hover:text-fg transition-colors">Edit</button>
             <div className="ml-auto flex items-center gap-2">
               {confirmDelete === s.id ? (
                 <>
@@ -79,6 +83,7 @@ export default function SetsView() {
             onConfirm={(targets) => void runRemove(resolveTargets(known, targets), s.ids)} />
         );
       })()}
+      {editId && <EditSetModal set={sets.find((x) => x.id === editId)!} byId={catalog.byId} onClose={() => setEditId(null)} />}
     </div>
   );
 }
