@@ -30,7 +30,7 @@ function ExpandedActive({ id, scope, entry }: { id: number; scope: KnownChar[]; 
   );
 }
 
-export default function ActiveTab({ known, scope, charSelected, byId, query, selected, onToggle }: {
+export default function ActiveTab({ known, scope, charSelected, byId, query, selected, onToggle, clearSelected }: {
   known: KnownChar[];
   scope: KnownChar[];
   charSelected: string | null;
@@ -38,6 +38,7 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
   query: string;
   selected: number[];
   onToggle: (id: number) => void;
+  clearSelected: () => void;
 }) {
   const [rowRemoveId, setRowRemoveId] = useState<number | null>(null);
   const rows = useMemo(() => {
@@ -77,7 +78,7 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
           return (
             <ObjectiveRow key={id} id={id} entry={entry} checkbox checked={selected.includes(id)} onToggle={() => onToggle(id)}
               countLabel={`${count}/${scope.length}`}
-              actions={<RowMenu id={id} known={known} charSelected={charSelected} onOpenPicker={() => setRowRemoveId(id)} />}
+              actions={<RowMenu id={id} known={known} charSelected={charSelected} selectedIds={selected} onOpenPicker={() => setRowRemoveId(id)} onClearSelected={clearSelected} />}
               expanded={<ExpandedActive id={id} scope={scope} entry={entry} />} />
           );
         })}
