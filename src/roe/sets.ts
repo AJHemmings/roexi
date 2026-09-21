@@ -1,0 +1,71 @@
+import { invoke } from '@tauri-apps/api/core';
+import { useSyncExternalStore } from 'react';
+import { appDataPath, inTauri } from '../bridge';
+import type { RoeSet } from './types';
+
+// Pure — exported for direct unit testing and for the Create/Edit modals' live inline validation.
+export function validateSetName(sets: RoeSet[], name: string, excludeId?: string): string | null {
+  const trimmed = name.trim();
+  if (!trimmed) return 'Name is required';
+  const clash = sets.some((s) => s.id !== excludeId && s.name.toLowerCase() === trimmed.toLowerCase());
+  return clash ? 'A set with this name already exists' : null;
+}
+
+// Pure — union + dedupe, used by "save to existing set".
+export function mergeIds(existing: number[], added: number[]): number[] {
+  return [...new Set([...existing, ...added])];
+}
+
+let sets: RoeSet[] = [];
+let started = false;
+// Mirrors settings.ts: guards the async disk read in load() from clobbering a change made before
+// it resolves.
+let touched = false;
+const subs = new Set<() => void>();
+const notify = () => subs.forEach((s) => s());
+
+async function load() {
+  if (started) return;
+  started = true;
+  if (!inTauri) return;
+  try {
+    const raw: unknown = JSON.parse(await invoke<string>('read_text_file', { path: await appDataPath('sets.json') }));
+    if (!touched && Array.isArray(raw)) { sets = raw as RoeSet[]; notify(); }
+  } catch { /* none saved */ }
+}
+void load();
+
+async function save() {
+  if (!inTauri) return;
+  try { await invoke('write_text_file', { path: await appDataPath('sets.json'), contents: JSON.stringify(sets) }); } catch { /* ignore */ }
+}
+
+function commit(next: RoeSet[]) { touched = true; sets = next; notify(); void save(); }
+
+export function useSets(): RoeSet[] {
+  return useSyncExternalStore((cb) => { subs.add(cb); return () => subs.delete(cb); }, () => sets, () => sets);
+}
+
+// Callers must validate with validateSetName() first — this trusts the name is already valid,
+// matching how the rest of this codebase keeps validation at the UI boundary rather than
+// re-checking internally.
+export function createSet(name: string, ids: number[]): RoeSet {
+  const now = Date.now();
+  const next: RoeSet = { id: crypto.randomUUID(), name: name.trim(), ids: [...ids], createdAt: now, updatedAt: now };
+  commit([...sets, next]);
+  return next;
+}
+
+export function updateSet(id: string, patch: { name?: string; ids?: number[] }): void {
+  commit(sets.map((s) => (s.id === id
+    ? { ...s, name: patch.name !== undefined ? patch.name.trim() : s.name, ids: patch.ids !== undefined ? [...patch.ids] : s.ids, updatedAt: Date.now() }
+    : s)));
+}
+
+export function deleteSet(id: string): void {
+  commit(sets.filter((s) => s.id !== id));
+}
+
+export function markApplied(id: string): void {
+  commit(sets.map((s) => (s.id === id ? { ...s, lastAppliedAt: Date.now() } : s)));
+}
