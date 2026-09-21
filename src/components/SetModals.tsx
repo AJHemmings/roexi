@@ -80,7 +80,8 @@ export function EditSetModal({ set, byId, onClose }: { set: RoeSet; byId: Map<nu
   return (
     <Modal onClose={onClose}>
       {(close) => (
-        <div className="p-4 flex flex-col gap-3">
+        <form onSubmit={(e) => { e.preventDefault(); if (!name || error) return; updateSet(set.id, { name, ids }); close(); }}
+          className="p-4 flex flex-col gap-3">
           <div className="text-[13px] font-bold text-fg">Edit set</div>
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
             className="w-full px-3 py-2 text-[13px] rounded-md bg-field border border-line text-fg focus:outline-none focus:border-accent" />
@@ -89,7 +90,7 @@ export function EditSetModal({ set, byId, onClose }: { set: RoeSet; byId: Map<nu
             {ids.map((id) => (
               <div key={id} className="flex items-center gap-2 px-3 py-1.5 text-[12px] rounded-md bg-field border border-line">
                 <span className="flex-1 truncate text-fg-2">{byId.get(id)?.n ?? `Unknown #${id}`}</span>
-                <button onClick={() => setIds((prev) => prev.filter((x) => x !== id))} aria-label="Remove from set" className="le-tap text-fg-4 hover:text-red-300">
+                <button type="button" onClick={() => setIds((prev) => prev.filter((x) => x !== id))} aria-label="Remove from set" className="le-tap text-fg-4 hover:text-red-300">
                   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M6 6 18 18M18 6 6 18" /></svg>
                 </button>
               </div>
@@ -97,12 +98,11 @@ export function EditSetModal({ set, byId, onClose }: { set: RoeSet; byId: Map<nu
             {ids.length === 0 && <div className="text-[11px] text-fg-4 text-center py-2">No objectives left in this set.</div>}
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <button onClick={close} className="le-tap px-3 py-1.5 text-[12px] font-semibold rounded-md border border-line bg-field text-fg-3 hover:text-fg-2 transition-colors">Cancel</button>
-            <button disabled={!name || !!error}
-              onClick={() => { updateSet(set.id, { name, ids }); close(); }}
+            <button type="button" onClick={close} className="le-tap px-3 py-1.5 text-[12px] font-semibold rounded-md border border-line bg-field text-fg-3 hover:text-fg-2 transition-colors">Cancel</button>
+            <button type="submit" disabled={!name || !!error}
               className="le-tap px-3 py-1.5 text-[12px] font-bold rounded-md bg-accent text-on-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Save</button>
           </div>
-        </div>
+        </form>
       )}
     </Modal>
   );

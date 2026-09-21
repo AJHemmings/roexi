@@ -46,11 +46,11 @@ export default function SetsView() {
             <span className="ml-auto text-[11px] text-fg-4">{relTime(s.lastAppliedAt) ?? 'Never applied'}</span>
           </div>
           <div className="flex items-center gap-2">
-            <button disabled={onlineKnown.length === 0} onClick={() => setApplyId(s.id)}
+            <button disabled={onlineKnown.length === 0} onClick={() => { setApplyId(s.id); setConfirmDelete(null); }}
               className="le-tap px-3 py-1.5 text-[12px] font-bold rounded-md bg-accent text-on-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Apply</button>
-            <button disabled={computeRemoveDefault(known, s.ids).length === 0} onClick={() => setRemoveId(s.id)}
+            <button disabled={computeRemoveDefault(known, s.ids).length === 0} onClick={() => { setRemoveId(s.id); setConfirmDelete(null); }}
               className="le-tap px-3 py-1.5 text-[12px] font-bold rounded-md bg-field border border-line text-fg-2 hover:text-fg transition-colors">Remove</button>
-            <button onClick={() => setEditId(s.id)}
+            <button onClick={() => { setEditId(s.id); setConfirmDelete(null); }}
               className="le-tap px-3 py-1.5 text-[12px] font-bold rounded-md bg-field border border-line text-fg-2 hover:text-fg transition-colors">Edit</button>
             <div className="ml-auto flex items-center gap-2">
               {confirmDelete === s.id ? (
