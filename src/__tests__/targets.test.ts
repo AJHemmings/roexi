@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeRemoveDefault } from '../roe/targets';
+import { computeRemoveDefault, resolveTargets } from '../roe/targets';
 import type { KnownChar } from '../roe/types';
 
 const char = (name: string, over: Partial<KnownChar> = {}): KnownChar => ({
@@ -25,5 +25,22 @@ describe('computeRemoveDefault', () => {
   it('includes a character when only one of several selected ids matches', () => {
     const known = [char('Aldric', { active: [{ id: 30, p: 0 }] })];
     expect(computeRemoveDefault(known, [10, 20, 30])).toEqual(['Aldric']);
+  });
+});
+
+describe('resolveTargets', () => {
+  it('resolves names to the matching KnownChar objects, in known order', () => {
+    const known = [char('Aldric'), char('Brienne'), char('Cassius')];
+    expect(resolveTargets(known, ['Cassius', 'Aldric'])).toEqual([char('Aldric'), char('Cassius')]);
+  });
+
+  it('ignores a name no longer present in known', () => {
+    const known = [char('Aldric')];
+    expect(resolveTargets(known, ['Aldric', 'Ghost'])).toEqual([char('Aldric')]);
+  });
+
+  it('returns an empty array for an empty name list', () => {
+    const known = [char('Aldric')];
+    expect(resolveTargets(known, [])).toEqual([]);
   });
 });

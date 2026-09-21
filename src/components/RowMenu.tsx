@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { computeRemoveDefault } from '../roe/targets';
+import { computeRemoveDefault, resolveTargets } from '../roe/targets';
 import { runRemove } from '../roe/batch';
 import type { KnownChar } from '../roe/types';
 
@@ -30,7 +30,7 @@ export function RowMenu({ id, known, charSelected, onOpenPicker }: {
   const [pos, setPos] = useState<{ right: number; top: number; up: boolean } | null>(null);
 
   const removeNames = computeRemoveDefault(known, [id]);
-  const removeTargets = known.filter((c) => removeNames.includes(c.name));
+  const removeTargets = resolveTargets(known, removeNames);
   const canRemoveAll = removeTargets.length > 0;
   const theChar = charSelected === null ? null : known.find((c) => c.name === charSelected) ?? null;
   const canRemoveThisChar = !!theChar && theChar.active.some((a) => a.id === id);

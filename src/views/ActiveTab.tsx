@@ -3,7 +3,7 @@ import { ObjectiveRow } from '../components/ObjectiveRow';
 import { ProgressBar } from '../components/ProgressBar';
 import { RowMenu } from '../components/RowMenu';
 import { runRemove } from '../roe/batch';
-import { computeRemoveDefault } from '../roe/targets';
+import { computeRemoveDefault, resolveTargets } from '../roe/targets';
 import { TargetPickerModal } from '../components/TargetPicker';
 import { MAX_ACTIVE } from '../roe/types';
 import type { KnownChar, CatalogEntry } from '../roe/types';
@@ -84,7 +84,7 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
         {rowRemoveId != null && (
           <TargetPickerModal known={known} defaultSelected={computeRemoveDefault(known, [rowRemoveId])}
             confirmLabel="Remove" onClose={() => setRowRemoveId(null)}
-            onConfirm={(targets) => void runRemove(known.filter((c) => targets.includes(c.name)), [rowRemoveId])} />
+            onConfirm={(targets) => void runRemove(resolveTargets(known, targets), [rowRemoveId])} />
         )}
       </div>
     </div>

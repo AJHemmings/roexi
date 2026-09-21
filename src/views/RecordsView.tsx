@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useCatalog } from '../roe/catalog';
 import { toggleId } from '../roe/selection';
 import { runAdd, runRemove } from '../roe/batch';
+import { resolveTargets } from '../roe/targets';
 import { useCharScope, CharScopeSelect } from '../components/CharScope';
 import { ActionBar } from '../components/ActionBar';
 import { ResultCards } from '../components/ResultCard';
@@ -54,8 +55,8 @@ export default function RecordsView() {
           : <LibraryTab catalog={catalog} scope={scope} query={query} selected={librarySel} onToggle={toggle} />}
       </div>
       <ActionBar known={scope} selectedIds={selected} showRemove={tab === 'active'}
-        onAdd={(targets) => { void runAdd(scope.filter((c) => targets.includes(c.name)), selected, catalog.byId); clear(); }}
-        onRemove={(targets) => { void runRemove(scope.filter((c) => targets.includes(c.name)), selected); clear(); }}
+        onAdd={(targets) => { void runAdd(resolveTargets(scope, targets), selected, catalog.byId); clear(); }}
+        onRemove={(targets) => { void runRemove(resolveTargets(scope, targets), selected); clear(); }}
         onClear={clear} />
     </div>
   );
