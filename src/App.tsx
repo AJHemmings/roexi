@@ -41,7 +41,7 @@ export default function App() {
         <TitleBar />
         <div className="flex-1 min-h-0 flex">
           <NavRail active={section} onSelect={setSection} />
-          <main id="main-content" className="relative flex-1 min-h-0 overflow-y-auto">
+          <main className="flex-1 min-h-0 overflow-y-auto">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div key={section} className="h-full" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}>
                 <ErrorBoundary>{VIEWS[section]}</ErrorBoundary>
