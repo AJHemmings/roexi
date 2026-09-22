@@ -41,7 +41,7 @@ export default function TitleBar() {
       <div className="flex items-center gap-2 pointer-events-none">
         <span className="w-[3px] h-3.5 rounded bg-accent" />
         <span className="text-[11px] font-extrabold tracking-[0.18em] text-accent">ROEXI</span>
-        {version && <span className="text-[10px] text-fg-4 font-medium">v{version}</span>}
+        {version && <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-accent/20 text-accent">v{version}</span>}
         {!bound && (
           <span className="group relative pointer-events-auto flex items-center gap-1 text-[10px] font-semibold text-red-300">
             <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
