@@ -55,7 +55,7 @@ export default function RecordsView() {
               selected={activeSel} onToggle={toggle} clearSelected={() => setActiveSel([])} />
           : <LibraryTab catalog={catalog} scope={scope} query={query} selected={librarySel} onToggle={toggle} />}
       </div>
-      <ActionBar known={scope} selectedIds={selected} showRemove={tab === 'active'}
+      <ActionBar known={scope} selectedIds={selected} byId={catalog.byId} showRemove={tab === 'active'}
         onAdd={(targets) => { void runAdd(resolveTargets(scope, targets), selected, catalog.byId); clear(); }}
         onRemove={(targets) => { void runRemove(resolveTargets(scope, targets), selected); clear(); }}
         onClear={clear} />

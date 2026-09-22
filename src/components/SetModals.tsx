@@ -3,11 +3,26 @@ import { Modal } from '../overlay';
 import { useSets, createSet, updateSet, validateSetName, mergeIds } from '../roe/sets';
 import type { RoeSet, CatalogEntry } from '../roe/types';
 
+/** Read-only recap of the objective selection being saved, shared by both modals below so the
+ * user can confirm it's the right set of records before naming/merging — not editable here;
+ * deselecting happens back in Library/Active via the checkboxes that built `ids`. */
+function SelectedList({ ids, byId }: { ids: number[]; byId: Map<number, CatalogEntry> }) {
+  return (
+    <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+      {ids.map((id) => (
+        <div key={id} className="px-3 py-1.5 text-[12px] rounded-md bg-field border border-line text-fg-2 truncate">
+          {byId.get(id)?.n ?? `Unknown #${id}`}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Autofocused name + inline validation, used by both the ActionBar's "Save to set" and RowMenu's
  * copy of the same action. `ids` is the objective-id selection being saved; `onSaved` lets each
  * caller wire its own selection-clearing behavior (ActionBar already has `onClear` in scope,
  * RowMenu's caller uses a `clearSelected` prop — see ActiveTab). */
-export function CreateSetModal({ ids, onSaved, onClose }: { ids: number[]; onSaved: () => void; onClose: () => void }) {
+export function CreateSetModal({ ids, byId, onSaved, onClose }: { ids: number[]; byId: Map<number, CatalogEntry>; onSaved: () => void; onClose: () => void }) {
   const sets = useSets();
   const [name, setName] = useState('');
   const error = name.length > 0 ? validateSetName(sets, name) : null;
@@ -17,7 +32,8 @@ export function CreateSetModal({ ids, onSaved, onClose }: { ids: number[]; onSav
       {(close) => (
         <form onSubmit={(e) => { e.preventDefault(); if (!name || validateSetName(sets, name)) return; createSet(name, ids); onSaved(); close(); }}
           className="p-4 flex flex-col gap-3">
-          <div className="text-[13px] font-bold text-fg">Create new set</div>
+          <div className="text-[13px] font-bold text-fg">Create new set <span className="font-semibold text-fg-4">· {ids.length} objective{ids.length === 1 ? '' : 's'}</span></div>
+          <SelectedList ids={ids} byId={byId} />
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Set name"
             className="w-full px-3 py-2 text-[13px] rounded-md bg-field border border-line text-fg placeholder:text-fg-4 focus:outline-none focus:border-accent" />
           {error && <div className="text-[11px] text-red-300/90">{error}</div>}
@@ -35,7 +51,7 @@ export function CreateSetModal({ ids, onSaved, onClose }: { ids: number[]; onSav
 /** Lists existing sets, single-select, merges `ids` into the chosen one. Caller (ActionBar/
  * RowMenu) should disable the menu item that opens this when useSets() is empty, rather than
  * ever mounting it with nothing to pick. */
-export function SaveToExistingSetModal({ ids, onSaved, onClose }: { ids: number[]; onSaved: () => void; onClose: () => void }) {
+export function SaveToExistingSetModal({ ids, byId, onSaved, onClose }: { ids: number[]; byId: Map<number, CatalogEntry>; onSaved: () => void; onClose: () => void }) {
   const sets = useSets();
   const [target, setTarget] = useState<string | null>(sets[0]?.id ?? null);
 
@@ -43,7 +59,8 @@ export function SaveToExistingSetModal({ ids, onSaved, onClose }: { ids: number[
     <Modal onClose={onClose}>
       {(close) => (
         <div className="p-4 flex flex-col gap-3">
-          <div className="text-[13px] font-bold text-fg">Save to existing set</div>
+          <div className="text-[13px] font-bold text-fg">Save to existing set <span className="font-semibold text-fg-4">· {ids.length} objective{ids.length === 1 ? '' : 's'}</span></div>
+          <SelectedList ids={ids} byId={byId} />
           <div className="flex flex-col gap-1 max-h-64 overflow-y-auto">
             {sets.map((s) => (
               <button key={s.id} onClick={() => setTarget(s.id)}

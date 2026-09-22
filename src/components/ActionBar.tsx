@@ -4,11 +4,12 @@ import { Dropdown, type DropdownItem } from './Dropdown';
 import { CreateSetModal, SaveToExistingSetModal } from './SetModals';
 import { computeRemoveDefault } from '../roe/targets';
 import { useSets } from '../roe/sets';
-import type { KnownChar } from '../roe/types';
+import type { KnownChar, CatalogEntry } from '../roe/types';
 
-export function ActionBar({ known, selectedIds, showRemove, onAdd, onRemove, onClear }: {
+export function ActionBar({ known, selectedIds, byId, showRemove, onAdd, onRemove, onClear }: {
   known: KnownChar[];
   selectedIds: number[];
+  byId: Map<number, CatalogEntry>;
   showRemove: boolean;
   onAdd: (targets: string[]) => void;
   onRemove: (targets: string[]) => void;
@@ -49,8 +50,8 @@ export function ActionBar({ known, selectedIds, showRemove, onAdd, onRemove, onC
         <TargetPickerModal known={known} defaultSelected={removeDefault} confirmLabel="Remove"
           onConfirm={onRemove} onClose={() => setRemoveModal(false)} />
       )}
-      {setModal === 'create' && <CreateSetModal ids={selectedIds} onSaved={onClear} onClose={() => setSetModal(null)} />}
-      {setModal === 'existing' && <SaveToExistingSetModal ids={selectedIds} onSaved={onClear} onClose={() => setSetModal(null)} />}
+      {setModal === 'create' && <CreateSetModal ids={selectedIds} byId={byId} onSaved={onClear} onClose={() => setSetModal(null)} />}
+      {setModal === 'existing' && <SaveToExistingSetModal ids={selectedIds} byId={byId} onSaved={onClear} onClose={() => setSetModal(null)} />}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { runRemove } from '../roe/batch';
 import { Dropdown, type DropdownItem } from './Dropdown';
 import { CreateSetModal, SaveToExistingSetModal } from './SetModals';
 import { useSets } from '../roe/sets';
-import type { KnownChar } from '../roe/types';
+import type { KnownChar, CatalogEntry } from '../roe/types';
 
 /** Per-row overflow menu for Active tab rows (redesign §5): "Remove from this character" (single-
  * character mode only), "Remove from multiple" (opens the row's TargetPickerModal via onOpenPicker),
@@ -15,11 +15,12 @@ import type { KnownChar } from '../roe/types';
  *
  * "Remove from multiple"/"Remove from all" act against every character who has the objective
  * active — not just the current dropdown scope — so they need the full `known` roster, not `scope`. */
-export function RowMenu({ id, known, charSelected, selectedIds, onOpenPicker, onClearSelected }: {
+export function RowMenu({ id, known, charSelected, selectedIds, byId, onOpenPicker, onClearSelected }: {
   id: number;
   known: KnownChar[];
   charSelected: string | null;
   selectedIds: number[];
+  byId: Map<number, CatalogEntry>;
   onOpenPicker: () => void;
   onClearSelected: () => void;
 }) {
@@ -49,8 +50,8 @@ export function RowMenu({ id, known, charSelected, selectedIds, onOpenPicker, on
           <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor"><circle cx="12" cy="5" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="19" r="1.8" /></svg>
         </button>
       )} />
-      {setModal === 'create' && <CreateSetModal ids={selectedIds} onSaved={onClearSelected} onClose={() => setSetModal(null)} />}
-      {setModal === 'existing' && <SaveToExistingSetModal ids={selectedIds} onSaved={onClearSelected} onClose={() => setSetModal(null)} />}
+      {setModal === 'create' && <CreateSetModal ids={selectedIds} byId={byId} onSaved={onClearSelected} onClose={() => setSetModal(null)} />}
+      {setModal === 'existing' && <SaveToExistingSetModal ids={selectedIds} byId={byId} onSaved={onClearSelected} onClose={() => setSetModal(null)} />}
     </>
   );
 }

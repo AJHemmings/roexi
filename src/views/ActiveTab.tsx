@@ -78,7 +78,7 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
           return (
             <ObjectiveRow key={id} id={id} entry={entry} checkbox checked={selected.includes(id)} onToggle={() => onToggle(id)}
               countLabel={`${count}/${scope.length}`}
-              actions={<RowMenu id={id} known={known} charSelected={charSelected} selectedIds={selected} onOpenPicker={() => setRowRemoveId(id)} onClearSelected={clearSelected} />}
+              actions={<RowMenu id={id} known={known} charSelected={charSelected} selectedIds={selected} byId={byId} onOpenPicker={() => setRowRemoveId(id)} onClearSelected={clearSelected} />}
               expanded={<ExpandedActive id={id} scope={scope} entry={entry} />} />
           );
         })}
