@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useCatalog } from '../roe/catalog';
 import { toggleId } from '../roe/selection';
 import { runAdd, runRemove } from '../roe/batch';
+import { resolveTargets } from '../roe/targets';
 import { useCharScope, CharScopeSelect } from '../components/CharScope';
 import { ActionBar } from '../components/ActionBar';
 import { ResultCards } from '../components/ResultCard';
@@ -50,12 +51,13 @@ export default function RecordsView() {
       <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-3">
         <ResultCards byId={catalog.byId} />
         {tab === 'active'
-          ? <ActiveTab known={known} scope={scope} charSelected={charSelected} byId={catalog.byId} query={query} selected={activeSel} onToggle={toggle} />
+          ? <ActiveTab known={known} scope={scope} charSelected={charSelected} byId={catalog.byId} query={query}
+              selected={activeSel} onToggle={toggle} clearSelected={() => setActiveSel([])} />
           : <LibraryTab catalog={catalog} scope={scope} query={query} selected={librarySel} onToggle={toggle} />}
       </div>
-      <ActionBar known={scope} selectedIds={selected} showRemove={tab === 'active'}
-        onAdd={(targets) => { void runAdd(scope.filter((c) => targets.includes(c.name)), selected, catalog.byId); clear(); }}
-        onRemove={(targets) => { void runRemove(scope.filter((c) => targets.includes(c.name)), selected); clear(); }}
+      <ActionBar known={scope} selectedIds={selected} byId={catalog.byId} showRemove={tab === 'active'}
+        onAdd={(targets) => { void runAdd(resolveTargets(scope, targets), selected, catalog.byId); clear(); }}
+        onRemove={(targets) => { void runRemove(resolveTargets(scope, targets), selected); clear(); }}
         onClear={clear} />
     </div>
   );

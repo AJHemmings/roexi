@@ -3,7 +3,7 @@ import { ObjectiveRow } from '../components/ObjectiveRow';
 import { ProgressBar } from '../components/ProgressBar';
 import { RowMenu } from '../components/RowMenu';
 import { runRemove } from '../roe/batch';
-import { computeRemoveDefault } from '../roe/targets';
+import { computeRemoveDefault, resolveTargets } from '../roe/targets';
 import { TargetPickerModal } from '../components/TargetPicker';
 import { MAX_ACTIVE } from '../roe/types';
 import type { KnownChar, CatalogEntry } from '../roe/types';
@@ -30,7 +30,7 @@ function ExpandedActive({ id, scope, entry }: { id: number; scope: KnownChar[]; 
   );
 }
 
-export default function ActiveTab({ known, scope, charSelected, byId, query, selected, onToggle }: {
+export default function ActiveTab({ known, scope, charSelected, byId, query, selected, onToggle, clearSelected }: {
   known: KnownChar[];
   scope: KnownChar[];
   charSelected: string | null;
@@ -38,6 +38,7 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
   query: string;
   selected: number[];
   onToggle: (id: number) => void;
+  clearSelected: () => void;
 }) {
   const [rowRemoveId, setRowRemoveId] = useState<number | null>(null);
   const rows = useMemo(() => {
@@ -77,14 +78,14 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
           return (
             <ObjectiveRow key={id} id={id} entry={entry} checkbox checked={selected.includes(id)} onToggle={() => onToggle(id)}
               countLabel={`${count}/${scope.length}`}
-              actions={<RowMenu id={id} known={known} charSelected={charSelected} onOpenPicker={() => setRowRemoveId(id)} />}
+              actions={<RowMenu id={id} known={known} charSelected={charSelected} selectedIds={selected} byId={byId} onOpenPicker={() => setRowRemoveId(id)} onClearSelected={clearSelected} />}
               expanded={<ExpandedActive id={id} scope={scope} entry={entry} />} />
           );
         })}
         {rowRemoveId != null && (
           <TargetPickerModal known={known} defaultSelected={computeRemoveDefault(known, [rowRemoveId])}
             confirmLabel="Remove" onClose={() => setRowRemoveId(null)}
-            onConfirm={(targets) => void runRemove(known.filter((c) => targets.includes(c.name)), [rowRemoveId])} />
+            onConfirm={(targets) => void runRemove(resolveTargets(known, targets), [rowRemoveId])} />
         )}
       </div>
     </div>

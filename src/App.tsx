@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { MotionConfig, AnimatePresence, motion } from 'motion/react';
 import TitleBar from './TitleBar';
 import NavRail, { type Section } from './NavRail';
@@ -18,8 +18,16 @@ const VIEWS: Record<Section, ReactElement> = {
 export default function App() {
   const [section, setSection] = useState<Section>('records');
   const uiScale = useSettings().uiScale;
+  const shellRef = useRef<HTMLDivElement>(null);
+  // Zoom is applied to this inner shell, not documentElement/body: Modal/Dropdown/Popover all
+  // portal to document.body, and WebView2 (unlike desktop Chrome) treats a zoom'd ancestor as a
+  // new positioning container for position:fixed descendants — so a zoom on documentElement was
+  // dragging every portaled overlay's coordinate space down to a shrunken, wrongly-anchored box
+  // along with it. Keeping body itself un-zoomed means portaled overlays are never inside the
+  // zoomed subtree, so that WebView2/Chrome inconsistency can't reach them.
   useEffect(() => {
-    const el = document.documentElement;
+    const el = shellRef.current;
+    if (!el) return;
     if (uiScale && uiScale !== 1) el.style.setProperty('zoom', String(uiScale));
     else el.style.removeProperty('zoom');
   }, [uiScale]);
@@ -37,7 +45,7 @@ export default function App() {
   return (
     <MotionConfig reducedMotion="user">
       <div className="le-bg" />
-      <div className="fixed inset-0 flex flex-col text-fg-2 @container">
+      <div ref={shellRef} className="fixed inset-0 flex flex-col text-fg-2 @container">
         <TitleBar />
         <div className="flex-1 min-h-0 flex">
           <NavRail active={section} onSelect={setSection} />
