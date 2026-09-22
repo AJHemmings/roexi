@@ -30,6 +30,14 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://github.com/AJHemmings/roexi/releases/latest/download/latest.json"],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQzOTYzRUUwNTg2OUYzOTIKUldTUzgybFk0RDZXUTdhUXN5UjlzdGFLamF0bXZBSEcvY21adGdLSkRQZFpWeU9LcjcvdjlST2sK",
+      "dialog": false
+    }
   }
 }
