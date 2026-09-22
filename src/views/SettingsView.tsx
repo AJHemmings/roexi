@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getVersion } from '@tauri-apps/api/app';
-import { Group, Row, RowStacked, Segmented, Select, Slider } from '../ui';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
+import { Group, Row, RowStacked, Segmented, Select, Slider, Toggle } from '../ui';
 import { useTheme, THEMES } from '../theme';
 import { useMode, setMode } from '../windowSize';
 import { useSettings, setSettings } from '../settings';
-import { inTauri, useIpcBound, useKnownCharacters, useBoxes, removeChar } from '../bridge';
+import { useIpcBound, useKnownCharacters, useBoxes, removeChar, useAddonInfo, getManualAddonDir, setManualAddonDir } from '../bridge';
 import { relTime, useNowTick } from '../reltime';
+import { checkForUpdate, installUpdate, checkAddonUpdate, installAddonUpdate, readInstalledAddonVersion, type Update, type ManifestAddon, type AddonInstallResult } from '../updater';
+import { getStartupCheck, setStartupCheck } from '../UpdateBanner';
 
 function CharactersSettings() {
   const known = useKnownCharacters();
@@ -37,14 +40,123 @@ function CharactersSettings() {
   );
 }
 
+function UpdatesSection() {
+  const [version, setVersion] = useState('');
+  const [status, setStatus] = useState<'idle' | 'checking' | 'none' | 'available' | 'downloading' | 'error'>('idle');
+  const [update, setUpdate] = useState<Update | null>(null);
+  const [pct, setPct] = useState(0);
+  const [msg, setMsg] = useState('');
+  const [startupChk, setStartupChk] = useState(getStartupCheck());
+  useEffect(() => { getVersion().then(setVersion).catch(() => {}); }, []);
+
+  const check = async () => {
+    setStatus('checking'); setMsg('');
+    try { const u = await checkForUpdate(); if (u) { setUpdate(u); setStatus('available'); } else setStatus('none'); }
+    catch (e) { setMsg(String(e)); setStatus('error'); }
+  };
+  const install = async () => {
+    if (!update) return;
+    setStatus('downloading'); setPct(0);
+    try { await installUpdate(update, setPct); } catch (e) { setMsg(String(e)); setStatus('error'); }
+  };
+
+  const note =
+    status === 'none' ? "You're on the latest version."
+      : status === 'available' ? `Update available: v${update?.version}`
+        : status === 'error' ? (msg || 'Update check failed.')
+          : status === 'downloading' ? `Downloading… ${pct}%`
+            : version ? `v${version}` : '';
+
+  if (import.meta.env.DEV) return null;
+
+  return (
+    <Group title="Updates">
+      <Row label="App Version" desc={note}>
+        {status === 'available' ? (
+          <button onClick={install} className="le-tap px-3 py-1.5 text-[12px] font-semibold rounded-md bg-accent text-on-accent hover:bg-accent-hover transition-colors">Install</button>
+        ) : (
+          <button onClick={check} disabled={status === 'checking' || status === 'downloading'} className="le-tap px-3 py-1.5 text-[12px] font-semibold rounded-md bg-surface-raised border border-line text-fg-2 hover:bg-surface-hover disabled:opacity-50 transition-colors">
+            {status === 'checking' ? 'Checking…' : status === 'downloading' ? `${pct}%` : 'Check for Updates'}
+          </button>
+        )}
+      </Row>
+      <AddonUpdateRow />
+      <Row label="Check On Startup" desc="Automatically check for app + addon updates when roexi launches">
+        <Toggle on={startupChk} onChange={(v) => { setStartupChk(v); setStartupCheck(v); }} />
+      </Row>
+    </Group>
+  );
+}
+
+function AddonUpdateRow() {
+  const addon = useAddonInfo();
+  const [status, setStatus] = useState<'idle' | 'checking' | 'none' | 'available' | 'installing' | 'installed' | 'error'>('idle');
+  const [manifest, setManifest] = useState<ManifestAddon | null>(null);
+  const [result, setResult] = useState<AddonInstallResult | null>(null);
+  const [msg, setMsg] = useState('');
+  const manual = getManualAddonDir();
+
+  const installed = addon?.version ?? null;
+
+  const check = async () => {
+    setStatus('checking'); setMsg('');
+    const r = await checkAddonUpdate(addon?.dir ?? null, addon?.version ?? null);
+    if (r.kind === 'available') { setManifest(r.manifest); setStatus('available'); }
+    else if (r.kind === 'none') setStatus('none');
+    else { setMsg(r.message); setStatus('error'); }
+  };
+  const install = async () => {
+    if (!addon?.dir || !manifest) return;
+    setStatus('installing'); setMsg('');
+    try { const res = await installAddonUpdate(addon.dir, manifest); setResult(res); setStatus('installed'); }
+    catch (e) { setMsg(String(e)); setStatus('error'); }
+  };
+  const pickFolder = async () => {
+    setMsg(''); setStatus('idle');
+    const picked = await openDialog({ directory: true, multiple: false, title: 'Select the roexi addon folder' });
+    if (typeof picked !== 'string') return;
+    const ver = await readInstalledAddonVersion(picked);
+    if (ver == null) { setManualAddonDir(null); setMsg('That folder has no roexi.lua. Pick your Windower addons/roexi folder.'); setStatus('error'); return; }
+    setManualAddonDir(picked);
+  };
+
+  const note =
+    status === 'installed' ? `Installed v${result?.installed_version}. Reload in-game with //lua reload roexi`
+      : status === 'error' ? (msg || 'Addon update check failed.')
+        : status === 'installing' ? 'Installing addon…'
+          : status === 'available' ? `Addon update available: v${manifest?.version}`
+            : status === 'none' ? `Addon is up to date${installed ? ` (v${installed})` : ''}.`
+              : !addon ? 'Set your Windower addons/roexi folder, or connect a character in-game.'
+                : `${addon.dir}${installed ? ` (v${installed})` : ''}`;
+
+  return (
+    <Row label="Addon Version" desc={note}>
+      <div className="flex items-center gap-2">
+        {addon && (
+          <button onClick={() => manual ? setManualAddonDir(null) : void pickFolder()} className="le-tap px-3 py-1.5 text-[12px] font-semibold rounded-md bg-surface-raised border border-line text-fg-3 hover:text-fg hover:bg-surface-hover transition-colors">
+            {manual ? 'Auto' : 'Change Folder'}
+          </button>
+        )}
+        {status === 'available' ? (
+          <button onClick={install} className="le-tap px-3 py-1.5 text-[12px] font-semibold rounded-md bg-accent text-on-accent hover:bg-accent-hover transition-colors">Install</button>
+        ) : !addon ? (
+          <button onClick={pickFolder} className="le-tap px-3 py-1.5 text-[12px] font-semibold rounded-md bg-surface-raised border border-line text-fg-2 hover:bg-surface-hover transition-colors">Set Folder</button>
+        ) : (
+          <button onClick={check} disabled={status === 'checking' || status === 'installing'} className="le-tap px-3 py-1.5 text-[12px] font-semibold rounded-md bg-surface-raised border border-line text-fg-2 hover:bg-surface-hover disabled:opacity-50 transition-colors">
+            {status === 'checking' ? 'Checking…' : status === 'installing' ? 'Installing…' : 'Check for Updates'}
+          </button>
+        )}
+      </div>
+    </Row>
+  );
+}
+
 export default function SettingsView() {
   const [theme, setTheme] = useTheme();
   const winMode = useMode();
   const settings = useSettings();
   const bound = useIpcBound();
   const boxes = useBoxes();
-  const [version, setVersion] = useState('');
-  useEffect(() => { if (inTauri) getVersion().then(setVersion).catch(() => {}); }, []);
   return (
     <div className="max-w-xl mx-auto p-5">
       <Group title="Appearance">
@@ -69,8 +181,8 @@ export default function SettingsView() {
           <span className="text-[12px] tabular-nums text-fg-2">{boxes.length}</span>
         </Row>
       </Group>
+      <UpdatesSection />
       <Group title="About">
-        <Row label="roexi" desc={version ? `v${version}` : 'browser preview'} />
         <Row label="Objective data" desc="Ids and names from the commandobill/roe mapping (MIT). Categories and rewards from BG-Wiki. See data/LICENSES.md." />
       </Group>
     </div>
