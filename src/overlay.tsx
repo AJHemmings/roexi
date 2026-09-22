@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 
-export function Modal({ onClose, children, panelClass = 'w-[min(94vw,460px)] max-h-[88vh]', backdropClose = true }: { onClose: () => void; children: ReactNode | ((close: () => void) => ReactNode); panelClass?: string; backdropClose?: boolean }) {
+export function Modal({ onClose, children, panelClass = 'w-full max-w-[460px] max-h-[88%]', backdropClose = true }: { onClose: () => void; children: ReactNode | ((close: () => void) => ReactNode); panelClass?: string; backdropClose?: boolean }) {
   const [open, setOpen] = useState(true);
   const close = useCallback(() => setOpen(false), []);
   useEffect(() => {
