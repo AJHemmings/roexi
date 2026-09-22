@@ -16,6 +16,7 @@ export type IdentityFrame = {
   zone_name?: string;
   server?: string;
   av?: string;
+  apath?: string;
 };
 export type RoeFrame = { t: 'roe'; items: RoeActive[] };
 export type RoeDoneFrame = { t: 'roedone'; page: number; ids: number[] };
@@ -43,6 +44,7 @@ export function parseFrame(line: string): Frame | null {
         t: o.t, id: o.id, name: o.name,
         main: optStr(o.main), main_lvl: optNum(o.main_lvl), sub: optStr(o.sub), sub_lvl: optNum(o.sub_lvl),
         zone: optNum(o.zone), zone_name: optStr(o.zone_name), server: optStr(o.server), av: optStr(o.av),
+        apath: optStr(o.apath),
       };
     }
     case 'roe': {
@@ -93,7 +95,7 @@ export function applyFrame(prev: Box | undefined, conn: number, f: StateFrame, n
         main: f.main ?? carry?.main, mainLvl: f.main_lvl ?? carry?.mainLvl,
         sub: f.sub ?? carry?.sub, subLvl: f.sub_lvl ?? carry?.subLvl,
         zone: f.zone ?? carry?.zone, zoneName: f.zone_name ?? carry?.zoneName,
-        server: f.server ?? carry?.server, av: f.av ?? carry?.av,
+        server: f.server ?? carry?.server, av: f.av ?? carry?.av, apath: f.apath ?? carry?.apath,
         active: base?.active, activeAt: base?.activeAt, donePages: base?.donePages, doneAt: base?.doneAt,
         lastSeen: now,
       },
