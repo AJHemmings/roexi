@@ -4,6 +4,9 @@
   <a href="https://github.com/AJHemmings/roexi/releases/latest">
     <img src="https://img.shields.io/github/downloads/AJHemmings/roexi/total?style=for-the-badge&color=d4a643&label=Total%20Downloads&cacheSeconds=3600" alt="Total Downloads" />
   </a>
+  <a href="https://ko-fi.com/makenshii">
+    <img src="https://img.shields.io/badge/Ko--fi-Support%20Me-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support me on Ko-fi" />
+  </a>
 </p>
 
 roexi is a desktop app for FFXI multiboxers to view and manage Records of Eminence objectives across up to 6 characters at once, without tabbing through each client's in-game RoE menu one at a time. Built on the same stack and UI language as the open-source [Alexandria](https://github.com/suspiciousman3187/Alexandria) inventory tool.
