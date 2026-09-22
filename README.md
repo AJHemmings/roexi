@@ -20,6 +20,34 @@ roexi is a desktop app for FFXI multiboxers to view and manage Records of Eminen
 - **Sets**: save a named group of objectives once, then apply or remove it against any subset of your characters in a couple of clicks, instead of re-selecting the same objectives every session.
 - **Multi-character throughout**: pick "All" or a single character from one dropdown, and every view/action scopes to that selection.
 
+## Screenshots
+
+<details open>
+<summary><b>Records</b>: Active, Library, expanded progress</summary>
+<br>
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/active.png" alt="Active tab" /><br><em>Active — every objective currently active across your roster</em></td>
+    <td width="50%" align="center"><img src="docs/screenshots/library.png" alt="Library tab" /><br><em>Library — the full objective catalog, grouped and searchable</em></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/progress.jpg" alt="Expanded per-character progress" /><br><em>Expand a row for real per-character progress bars</em></td>
+    <td width="50%"></td>
+  </tr>
+</table>
+</details>
+
+<details>
+<summary><b>Sets</b></summary>
+<br>
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/sets.png" alt="Editing a Set" /><br><em>Save a group of objectives once, apply or edit it any time</em></td>
+    <td width="50%"></td>
+  </tr>
+</table>
+</details>
+
 ## Download & Install
 
 Grab the latest build from the [**Releases**](https://github.com/AJHemmings/roexi/releases/latest) page. Two assets are provided:
