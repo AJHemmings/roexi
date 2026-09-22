@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { MotionConfig, AnimatePresence, motion } from 'motion/react';
 import TitleBar from './TitleBar';
+import UpdateBanner from './UpdateBanner';
 import NavRail, { type Section } from './NavRail';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useSettings } from './settings';
@@ -47,6 +48,7 @@ export default function App() {
       <div className="le-bg" />
       <div ref={shellRef} className="fixed inset-0 flex flex-col text-fg-2 @container">
         <TitleBar />
+        <UpdateBanner />
         <div className="flex-1 min-h-0 flex">
           <NavRail active={section} onSelect={setSection} />
           <main className="flex-1 min-h-0 overflow-y-auto">
