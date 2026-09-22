@@ -21,6 +21,7 @@ export type Box = {
   zoneName?: string;
   server?: string;
   av?: string;
+  apath?: string;
   active?: RoeActive[];
   activeAt?: number;
   donePages?: Record<number, number[]>;

@@ -1,7 +1,7 @@
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { appLocalDataDir } from '@tauri-apps/api/path';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { parseFrame, applyFrame } from './frames';
 import { doneFromPages } from '../roe/bitmap';
 import type { Box, KnownChar, PersistedChar } from '../roe/types';
@@ -57,6 +57,75 @@ export function getKnownCharacters(): KnownChar[] { return knownSnapshot; }
 /** Raw, un-debounced active ids for a connection. Batch diffs read this, never the KnownChar snapshot. */
 export function getBoxActiveIds(conn: number): number[] { return (byConn.get(conn)?.active ?? []).map((a) => a.id); }
 export function getBoxActiveAt(conn: number): number { return byConn.get(conn)?.activeAt ?? 0; }
+
+// ── addon location + version, for the updater ───────────────────────────────
+export type AddonInfo = { dir: string; version: string | null };
+
+const ADDON_DIR_KEY = 'roexi-addon-dir';
+const ADDON_VER_KEY = 'roexi-addon-ver';
+const ADDON_DIR_MANUAL_KEY = 'roexi-addon-dir-manual';
+
+const addonManualSubs = new Set<() => void>();
+
+function persistAddon(info: AddonInfo): void {
+  try {
+    localStorage.setItem(ADDON_DIR_KEY, info.dir);
+    localStorage.setItem(ADDON_VER_KEY, info.version ?? '');
+  } catch { /* ignore */ }
+}
+
+function readPersistedAddon(): AddonInfo | null {
+  try {
+    const dir = localStorage.getItem(ADDON_DIR_KEY);
+    if (dir) return { dir, version: localStorage.getItem(ADDON_VER_KEY) || null };
+  } catch { /* ignore */ }
+  return null;
+}
+
+export function getManualAddonDir(): string | null {
+  try { return localStorage.getItem(ADDON_DIR_MANUAL_KEY) || null; } catch { return null; }
+}
+
+export function setManualAddonDir(dir: string | null): void {
+  try {
+    if (dir) localStorage.setItem(ADDON_DIR_MANUAL_KEY, dir.replace(/[\\/]+$/, ''));
+    else localStorage.removeItem(ADDON_DIR_MANUAL_KEY);
+  } catch { /* ignore */ }
+  addonManualSubs.forEach((f) => f());
+}
+
+export function getConnectedAddonInfo(): AddonInfo | null {
+  for (const b of byConn.values()) {
+    if (b.apath) {
+      const info = { dir: b.apath.replace(/[\\/]+$/, ''), version: b.av ?? null };
+      persistAddon(info);
+      return info;
+    }
+  }
+  return null;
+}
+
+export function getAddonInfo(): AddonInfo | null {
+  const manual = getManualAddonDir();
+  const live = getConnectedAddonInfo();
+  if (manual) return { dir: manual, version: live?.dir === manual ? live.version : null };
+  return live ?? readPersistedAddon();
+}
+
+function addonKey(): string {
+  let live = '';
+  for (const b of liveSnapshot) if (b.apath) { live = `${b.apath}|${b.av ?? ''}`; break; }
+  return `${getManualAddonDir() ?? ''}#${live}`;
+}
+
+export function useAddonInfo(): AddonInfo | null {
+  const key = useSyncExternalStore(
+    (cb) => { const un = subscribe(cb); addonManualSubs.add(cb); return () => { un(); addonManualSubs.delete(cb); }; },
+    addonKey,
+    () => '#',
+  );
+  return useMemo(() => getAddonInfo(), [key]);
+}
 
 // ── persistence ──────────────────────────────────────────────────────────────
 export async function appDataPath(rel: string): Promise<string> {

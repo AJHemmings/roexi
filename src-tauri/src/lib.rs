@@ -17,6 +17,176 @@ fn conns() -> &'static Mutex<HashMap<u64, TcpStream>> {
     C.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+#[derive(serde::Serialize)]
+struct AddonInstallResult {
+    installed_version: String,
+    files_written: usize,
+    files_skipped: usize,
+    skipped_examples: Vec<String>,
+    addon_dir: String,
+}
+
+fn read_addon_version(addon_dir: &Path) -> Option<String> {
+    let main = addon_dir.join("roexi.lua");
+    let content = fs::read_to_string(&main).ok()?;
+    for line in content.lines().take(40) {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("_addon.version") {
+            let after_eq = rest.trim_start_matches(|c: char| c.is_whitespace() || c == '=');
+            let v = after_eq.trim_matches(|c: char| c.is_whitespace() || c == '\'' || c == '"' || c == ',' || c == ';');
+            if !v.is_empty() {
+                return Some(v.to_string());
+            }
+        }
+    }
+    None
+}
+
+#[tauri::command]
+fn read_installed_addon_version(addon_dir: String) -> Result<Option<String>, String> {
+    let p = Path::new(&addon_dir);
+    if !p.is_dir() {
+        return Err(format!("not a directory: {}", addon_dir));
+    }
+    Ok(read_addon_version(p))
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    h.update(bytes);
+    let out = h.finalize();
+    let mut s = String::with_capacity(64);
+    for b in out.iter() {
+        s.push_str(&format!("{:02x}", b));
+    }
+    s
+}
+
+fn should_skip_addon_path(rel: &str) -> bool {
+    let normalized = rel.replace('\\', "/");
+    if normalized.starts_with("data/") || normalized == "data" {
+        return true;
+    }
+    if normalized.starts_with("../") || normalized.contains("/../") {
+        return true;
+    }
+    let lower = normalized.to_lowercase();
+    if lower.contains("config") && lower.ends_with(".json") {
+        return true;
+    }
+    false
+}
+
+#[tauri::command]
+fn install_addon_update(
+    addon_dir: String,
+    url: String,
+    expected_sha256: Option<String>,
+) -> Result<AddonInstallResult, String> {
+    use std::io::Read;
+    let target = Path::new(&addon_dir);
+    if !target.is_dir() {
+        return Err(format!("addon dir does not exist: {}", addon_dir));
+    }
+    let existing_main = target.join("roexi.lua");
+    if !existing_main.is_file() {
+        return Err(format!(
+            "roexi.lua not found in {} — point at the addon folder",
+            addon_dir
+        ));
+    }
+
+    let resp = ureq::get(&url).call().map_err(|e| format!("download failed: {e}"))?;
+    let mut bytes: Vec<u8> = Vec::new();
+    resp.into_reader()
+        .take(200 * 1024 * 1024)
+        .read_to_end(&mut bytes)
+        .map_err(|e| format!("read failed: {e}"))?;
+    if bytes.is_empty() {
+        return Err("downloaded zero bytes".to_string());
+    }
+
+    if let Some(want) = expected_sha256.as_deref() {
+        if !want.is_empty() {
+            let got = sha256_hex(&bytes);
+            if !got.eq_ignore_ascii_case(want) {
+                return Err(format!("sha256 mismatch — got {got}, expected {want}"));
+            }
+        }
+    }
+
+    let cursor = std::io::Cursor::new(bytes);
+    let mut archive = zip::ZipArchive::new(cursor).map_err(|e| format!("not a valid zip: {e}"))?;
+
+    let mut has_main = false;
+    for i in 0..archive.len() {
+        let f = archive.by_index(i).map_err(|e| format!("zip entry {i}: {e}"))?;
+        let name = f.name();
+        if name == "roexi.lua" || name.ends_with("/roexi.lua") {
+            has_main = true;
+        }
+    }
+    if !has_main {
+        return Err("zip does not contain roexi.lua at the root — refusing to install".to_string());
+    }
+
+    let mut files_written = 0usize;
+    let mut files_skipped = 0usize;
+    let mut skipped_examples: Vec<String> = Vec::new();
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i).map_err(|e| format!("zip entry {i}: {e}"))?;
+        let raw_name = entry.name().to_string();
+        if entry.is_dir() {
+            continue;
+        }
+        let rel = raw_name.trim_start_matches("./").to_string();
+        if should_skip_addon_path(&rel) {
+            files_skipped += 1;
+            if skipped_examples.len() < 5 {
+                skipped_examples.push(rel.clone());
+            }
+            continue;
+        }
+        let out_path = target.join(&rel);
+        if let Some(parent) = out_path.parent() {
+            fs::create_dir_all(parent).map_err(|e| format!("mkdir {}: {}", parent.display(), e))?;
+        }
+        let mut buf: Vec<u8> = Vec::with_capacity(entry.size() as usize);
+        entry.read_to_end(&mut buf).map_err(|e| format!("read {}: {}", rel, e))?;
+        if let Ok(existing) = fs::read(&out_path) {
+            if existing == buf {
+                files_skipped += 1;
+                continue;
+            }
+        }
+        let tmp_path = out_path.with_extension("tmp_update");
+        fs::write(&tmp_path, &buf).map_err(|e| format!("write tmp {}: {}", tmp_path.display(), e))?;
+        if out_path.exists() && fs::remove_file(&out_path).is_err() {
+            let aside = out_path.with_extension("old_update");
+            let _ = fs::remove_file(&aside);
+            fs::rename(&out_path, &aside).map_err(|_| {
+                format!(
+                    "{} is in use and could not be replaced. Unload the addon in Windower (//lua unload roexi), install the update, then reload it.",
+                    out_path.display()
+                )
+            })?;
+        }
+        fs::rename(&tmp_path, &out_path)
+            .map_err(|e| format!("rename {} -> {}: {}", tmp_path.display(), out_path.display(), e))?;
+        files_written += 1;
+    }
+
+    let installed_version = read_addon_version(target).unwrap_or_else(|| "unknown".to_string());
+    Ok(AddonInstallResult {
+        installed_version,
+        files_written,
+        files_skipped,
+        skipped_examples,
+        addon_dir: addon_dir.clone(),
+    })
+}
+
 #[derive(Clone, serde::Serialize)]
 struct BoxMsg {
     conn: u64,
@@ -218,6 +388,9 @@ fn setup_tray(_app: &tauri::AppHandle) -> Result<(), tauri::Error> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             #[cfg(debug_assertions)]
             {
@@ -244,6 +417,8 @@ pub fn run() {
             quit_app,
             send_box_command,
             broadcast_box_command,
+            read_installed_addon_version,
+            install_addon_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running roexi");
