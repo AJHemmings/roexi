@@ -140,6 +140,7 @@ local function build_self(kind)
         .. ',"zone_name":"' .. esc(zone_name) .. '"'
         .. ',"server":"' .. esc(server_name) .. '"'
         .. ',"av":"' .. esc(_addon.version) .. '"'
+        .. ',"apath":"' .. esc(windower.addon_path) .. '"'
         .. '}\n'
 end
 
