@@ -22,7 +22,7 @@ export function ActiveCountHeader({ scope, single }: { scope: KnownChar[]; singl
       ) : (
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           {scope.map((c) => (
-            <span key={c.name} className={`inline-flex items-center gap-1.5 text-[11px] font-semibold text-fg-2 ${c.online ? '' : 'opacity-50'}`}>
+            <span key={c.name} title={`${c.name}: ${c.active.length}/${MAX_ACTIVE} active${c.active.length >= MAX_ACTIVE ? ' (full)' : ''}${c.online ? '' : ' (offline, last known)'}`} className={`inline-flex items-center gap-1.5 text-[11px] font-semibold text-fg-2 ${c.online ? '' : 'opacity-50'}`}>
               {isCharBusy(pending, c.name)
                 ? <Spinner className="w-2 h-2" />
                 : <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${c.online ? 'bg-emerald-400' : 'bg-fg-4'}`} />}
