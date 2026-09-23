@@ -16,7 +16,8 @@ export function resolveTargets(known: KnownChar[], names: string[]): KnownChar[]
 
 export type AddBlockReason = 'auto' | 'active' | 'completed' | 'offline' | 'full';
 
-// Pure: why `char` can't take `id` right now, or null if an add would actually be sent. Derived from
+// Pure: why `char` can't take `id` right now, or null if an add would actually be sent. For a single
+// id only — its 'full' result doesn't predict what happens with a multi-id batch. Derived from
 // buildAddPlan (the same rules runAdd uses) so a disabled button can never disagree with the batch
 // runner. Permanent reasons win over temporary ones: an offline character who already completed a
 // one-time objective reports 'completed', because logging them in won't help. Spec §4.1.
@@ -30,7 +31,9 @@ export function addBlockReason(char: KnownChar, id: number, byId: Map<number, Ca
   return null;
 }
 
-// Pure: mirrors computeRemoveDefault — the characters an Add picker should pre-tick.
+// Pure: mirrors computeRemoveDefault — the characters an Add picker should pre-tick. Built from the
+// whole-batch plan (not per id) so it matches runAdd for multi-id lists too: a character at 29 active
+// can take one objective but not two, and buildAddPlan sends nothing at all in that case.
 export function computeAddDefault(known: KnownChar[], ids: number[], byId: Map<number, CatalogEntry>): string[] {
-  return known.filter((c) => ids.some((id) => addBlockReason(c, id, byId) === null)).map((c) => c.name);
+  return buildAddPlan(known, ids, byId).filter((p) => p.status === 'ok' && p.send.length > 0).map((p) => p.name);
 }

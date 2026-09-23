@@ -86,6 +86,10 @@ describe('addBlockReason', () => {
   it("prefers 'auto' over everything", () => {
     expect(addBlockReason(char('Aldric', { online: false, active: thirty }), 4010, byId)).toBe('auto');
   });
+  it("prefers 'active' over 'offline'", () => {
+    const c = char('Aldric', { online: false, active: [{ id: 10, p: 0 }] });
+    expect(addBlockReason(c, 10, byId)).toBe('active');
+  });
 });
 
 describe('computeAddDefault', () => {
@@ -95,5 +99,11 @@ describe('computeAddDefault', () => {
   });
   it('returns an empty list when nobody is eligible', () => {
     expect(computeAddDefault([char('Aldric', { online: false })], [10], byId)).toEqual([]);
+  });
+  it('excludes a character with room for one but not all of several ids', () => {
+    const twentyNine = Array.from({ length: 29 }, (_, i) => ({ id: 500 + i, p: 0 }));
+    const known = [char('Aldric', { active: twentyNine })];
+    expect(computeAddDefault(known, [10, 20], byId)).toEqual([]);
+    expect(computeAddDefault(known, [10], byId)).toEqual(['Aldric']);
   });
 });
