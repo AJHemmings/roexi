@@ -11,6 +11,8 @@ use tauri::{AppHandle, Emitter};
 const BOX_PORT: u16 = 24244;
 static CONN_SEQ: AtomicU64 = AtomicU64::new(1);
 static IPC_BOUND: AtomicBool = AtomicBool::new(false);
+/// Why the last bind attempt failed, in words a user can act on. None while bound.
+static IPC_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
 fn conns() -> &'static Mutex<HashMap<u64, TcpStream>> {
     static C: OnceLock<Mutex<HashMap<u64, TcpStream>>> = OnceLock::new();
@@ -86,11 +88,22 @@ fn install_addon_update(
 ) -> Result<AddonInstallResult, String> {
     use std::io::Read;
     let target = Path::new(&addon_dir);
+    // A folder named `roexi` is always an acceptable target: that's a fresh install into
+    // Windower's addons folder (created if needed). Anything else must already hold roexi.lua,
+    // so an update can never spray files into an unrelated folder.
+    let is_roexi_dir = target
+        .file_name()
+        .map(|n| n.to_string_lossy().eq_ignore_ascii_case("roexi"))
+        .unwrap_or(false);
     if !target.is_dir() {
-        return Err(format!("addon dir does not exist: {}", addon_dir));
+        let parent_ok = target.parent().map(|p| p.is_dir()).unwrap_or(false);
+        if !(is_roexi_dir && parent_ok) {
+            return Err(format!("addon dir does not exist: {}", addon_dir));
+        }
+        fs::create_dir_all(target).map_err(|e| format!("mkdir {}: {}", addon_dir, e))?;
     }
     let existing_main = target.join("roexi.lua");
-    if !existing_main.is_file() {
+    if !existing_main.is_file() && !is_roexi_dir {
         return Err(format!(
             "roexi.lua not found in {} — point at the addon folder",
             addon_dir
@@ -196,16 +209,30 @@ struct BoxMsg {
 /// Accepts addon connections forever. Each line received is forwarded to the webview as a
 /// `roexi://box-msg` event tagged with the connection id; a closed socket emits `roexi://box-gone`.
 fn start_box_server(app: AppHandle) {
-    std::thread::spawn(move || loop {
+    std::thread::spawn(move || {
+      let mut failures: u32 = 0;
+      loop {
         let listener = match TcpListener::bind(("127.0.0.1", BOX_PORT)) {
             Ok(l) => l,
             Err(e) => {
                 log::warn!("[roexi] could not bind 127.0.0.1:{BOX_PORT}: {e}; retrying");
                 IPC_BOUND.store(false, Ordering::Relaxed);
+                // Looking up the port's owner spawns netstat/tasklist, so refresh the
+                // explanation on the first failure and then only every ~30 s.
+                if failures % 10 == 0 {
+                    if let Ok(mut err) = IPC_ERROR.lock() {
+                        *err = Some(describe_bind_error(&e));
+                    }
+                }
+                failures = failures.wrapping_add(1);
                 std::thread::sleep(std::time::Duration::from_secs(3));
                 continue;
             }
         };
+        failures = 0;
+        if let Ok(mut err) = IPC_ERROR.lock() {
+            *err = None;
+        }
         IPC_BOUND.store(true, Ordering::Relaxed);
         log::info!("[roexi] listening on 127.0.0.1:{BOX_PORT}");
         for stream in listener.incoming().flatten() {
@@ -241,6 +268,7 @@ fn start_box_server(app: AppHandle) {
         }
         IPC_BOUND.store(false, Ordering::Relaxed);
         std::thread::sleep(std::time::Duration::from_secs(1));
+      }
     });
 }
 
@@ -279,9 +307,103 @@ fn broadcast_box_command(line: String) -> Result<u32, String> {
     Ok(sent)
 }
 
+#[derive(serde::Serialize)]
+struct IpcStatus {
+    bound: bool,
+    error: Option<String>,
+}
+
 #[tauri::command]
-fn ipc_bound() -> bool {
-    IPC_BOUND.load(Ordering::Relaxed)
+fn ipc_status() -> IpcStatus {
+    IpcStatus {
+        bound: IPC_BOUND.load(Ordering::Relaxed),
+        error: IPC_ERROR.lock().ok().and_then(|e| e.clone()),
+    }
+}
+
+/// Turns a bind failure into something a user can act on without running any diagnostics.
+fn describe_bind_error(e: &std::io::Error) -> String {
+    match e.kind() {
+        std::io::ErrorKind::AddrInUse => match port_owner(BOX_PORT) {
+            Some((pid, name)) if name.eq_ignore_ascii_case("roexi.exe") => format!(
+                "Another copy of roexi is already running (PID {pid}) and has the connection. Close this window and use that one."
+            ),
+            Some((pid, name)) => format!(
+                "Port {BOX_PORT} is being used by {name} (PID {pid}). Close that program and roexi will connect automatically."
+            ),
+            None => format!("Port {BOX_PORT} is already in use by another program."),
+        },
+        // WSAEACCES: Windows has put the port in an excluded range (Hyper-V / WSL / Docker).
+        std::io::ErrorKind::PermissionDenied => format!(
+            "Windows has reserved port {BOX_PORT} (usually Hyper-V, WSL or Docker), so roexi can't listen on it."
+        ),
+        _ => format!("Couldn't listen on port {BOX_PORT}: {e}"),
+    }
+}
+
+/// PID of the process LISTENING on the port, from `netstat -ano -p TCP` output.
+fn parse_netstat_listener(output: &str, port: u16) -> Option<u32> {
+    let suffix = format!(":{port}");
+    output.lines().find_map(|line| {
+        let cols: Vec<&str> = line.split_whitespace().collect();
+        // Proto  Local  Foreign  State  PID
+        if cols.len() == 5
+            && cols[0].eq_ignore_ascii_case("TCP")
+            && cols[1].ends_with(&suffix)
+            && cols[3].eq_ignore_ascii_case("LISTENING")
+        {
+            cols[4].parse().ok()
+        } else {
+            None
+        }
+    })
+}
+
+/// Image name from `tasklist /FO CSV /NH` output: the first quoted field.
+fn parse_tasklist_name(output: &str) -> Option<String> {
+    let line = output.lines().find(|l| l.starts_with('"'))?;
+    let name = line.trim_start_matches('"').split('"').next()?;
+    if name.is_empty() { None } else { Some(name.to_string()) }
+}
+
+#[cfg(target_os = "windows")]
+fn port_owner(port: u16) -> Option<(u32, String)> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let run = |cmd: &str, args: &[&str]| {
+        std::process::Command::new(cmd)
+            .args(args)
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .ok()
+            .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+    };
+    let pid = parse_netstat_listener(&run("netstat", &["-ano", "-p", "TCP"])?, port)?;
+    let filter = format!("PID eq {pid}");
+    let name = parse_tasklist_name(&run("tasklist", &["/FI", &filter, "/FO", "CSV", "/NH"])?)
+        .unwrap_or_else(|| "an unknown program".to_string());
+    Some((pid, name))
+}
+
+#[cfg(not(target_os = "windows"))]
+fn port_owner(_port: u16) -> Option<(u32, String)> {
+    None
+}
+
+/// Fetches a small text resource (the addon update manifest) from Rust. The webview's own fetch()
+/// can't be used: GitHub's release-download redirects send no CORS headers, so the browser blocks
+/// the response ("Failed to fetch"). Plain http is only allowed to localhost, for the local
+/// end-to-end update test.
+#[tauri::command]
+async fn fetch_text(url: String) -> Result<String, String> {
+    let allowed = url.starts_with("https://")
+        || url.starts_with("http://127.0.0.1")
+        || url.starts_with("http://localhost");
+    if !allowed {
+        return Err("only https urls are allowed".into());
+    }
+    let resp = ureq::get(&url).call().map_err(|e| format!("fetch failed: {e}"))?;
+    resp.into_string().map_err(|e| format!("read failed: {e}"))
 }
 
 #[tauri::command]
@@ -387,7 +509,14 @@ fn setup_tray(_app: &tauri::AppHandle) -> Result<(), tauri::Error> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // Release builds only: a second launch focuses the running window instead of starting a copy
+    // that can't bind the addon port. Skipped in dev so `tauri dev` can run beside an installed roexi.
+    #[cfg(not(debug_assertions))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        show_main_window(app.clone());
+    }));
+    builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -407,7 +536,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            ipc_bound,
+            ipc_status,
+            fetch_text,
             read_text_file,
             write_text_file,
             delete_file,
@@ -422,4 +552,30 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running roexi");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn finds_the_listening_pid_for_the_port() {
+        let out = "\r\nActive Connections\r\n\r\n  Proto  Local Address          Foreign Address        State           PID\r\n  TCP    0.0.0.0:135            0.0.0.0:0              LISTENING       1100\r\n  TCP    127.0.0.1:24244        0.0.0.0:0              LISTENING       5512\r\n  TCP    127.0.0.1:24244        127.0.0.1:50123        ESTABLISHED     5512\r\n";
+        assert_eq!(parse_netstat_listener(out, 24244), Some(5512));
+        assert_eq!(parse_netstat_listener(out, 24233), None);
+    }
+
+    #[test]
+    fn ignores_a_port_that_only_ends_with_the_same_digits() {
+        let out = "  TCP    127.0.0.1:124244       0.0.0.0:0              LISTENING       77\r\n";
+        assert_eq!(parse_netstat_listener(out, 24244), None);
+    }
+
+    #[test]
+    fn reads_the_image_name_from_tasklist_csv() {
+        let hit = "\"roexi.exe\",\"5512\",\"Console\",\"1\",\"30,000 K\"\r\n";
+        assert_eq!(parse_tasklist_name(hit).as_deref(), Some("roexi.exe"));
+        let miss = "INFO: No tasks are running which match the specified criteria.\r\n";
+        assert_eq!(parse_tasklist_name(miss), None);
+    }
 }

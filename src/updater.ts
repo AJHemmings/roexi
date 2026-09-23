@@ -5,7 +5,8 @@ import { inTauri } from './bridge';
 
 export type { Update };
 
-export const ADDON_MANIFEST_URL = 'https://github.com/AJHemmings/roexi/releases/latest/download/addon.json';
+// Overridable at build time only for the local end-to-end update test (a localhost manifest server).
+export const ADDON_MANIFEST_URL = import.meta.env.VITE_ADDON_MANIFEST_URL ?? 'https://github.com/AJHemmings/roexi/releases/latest/download/addon.json';
 
 export async function checkForUpdate(): Promise<Update | null> {
   if (!inTauri) return null;
@@ -72,9 +73,10 @@ export async function checkAddonUpdate(addonDir: string | null, installedVersion
   if (!addonDir) return { kind: 'no-addon', message: 'Connect a character in-game so roexi can locate the addon folder.' };
   try {
     const installed = installedVersion ?? (await readInstalledAddonVersion(addonDir));
-    const resp = await fetch(ADDON_MANIFEST_URL, { cache: 'no-cache' });
-    if (!resp.ok) throw new Error(`manifest fetch ${resp.status}`);
-    const manifest = (await resp.json()) as { addon?: ManifestAddon };
+    // Fetched in Rust, not with the webview's fetch(): GitHub's release-download redirects send no
+    // CORS headers, so a browser fetch fails with "Failed to fetch". (Alexandria hosts its manifest
+    // on its own domain, which is why its copy of this code can use fetch.)
+    const manifest = JSON.parse(await invoke<string>('fetch_text', { url: ADDON_MANIFEST_URL })) as { addon?: ManifestAddon };
     if (!manifest.addon || !manifest.addon.version || !manifest.addon.url) {
       return { kind: 'none', installed };
     }

@@ -2,7 +2,9 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "permissions for the main window",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
@@ -16,6 +18,9 @@
     "core:window:allow-set-always-on-top",
     "core:window:allow-set-size",
     "core:window:allow-inner-size",
-    "core:window:allow-scale-factor"
+    "core:window:allow-scale-factor",
+    "dialog:allow-open",
+    "updater:default",
+    "process:allow-restart"
   ]
 }

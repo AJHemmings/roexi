@@ -280,18 +280,23 @@ export function openExternal(url: string) {
 }
 
 // ── listener health ──────────────────────────────────────────────────────────
-/** Polls the Rust side every 3 s; true in the browser so the dev UI never shows a red dot. */
-export function useIpcBound(): boolean {
-  const [bound, setBound] = useState(true);
+export type IpcStatus = { bound: boolean; error: string | null };
+const IPC_OK: IpcStatus = { bound: true, error: null };
+
+/** Polls the Rust side every 3 s; always bound in the browser so the dev UI never shows a red dot.
+ * `error` is Rust's plain-language reason when it can't listen (which program holds the port, a
+ * second roexi, or a Windows-reserved port), so the user never has to diagnose it themselves. */
+export function useIpcStatus(): IpcStatus {
+  const [status, setStatus] = useState<IpcStatus>(IPC_OK);
   useEffect(() => {
     if (!inTauri) return;
     let alive = true;
-    const tick = async () => { try { const b = await invoke<boolean>('ipc_bound'); if (alive) setBound(b); } catch { /* ignore */ } };
+    const tick = async () => { try { const s = await invoke<IpcStatus>('ipc_status'); if (alive) setStatus(s); } catch { /* ignore */ } };
     void tick();
     const id = window.setInterval(tick, 3000);
     return () => { alive = false; window.clearInterval(id); };
   }, []);
-  return bound;
+  return status;
 }
 
 // ── startup ──────────────────────────────────────────────────────────────────
