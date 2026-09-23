@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { checkForUpdate, installUpdate, checkAddonUpdate, installAddonUpdate, type Update, type ManifestAddon } from './updater';
 import { useAddonInfo } from './bridge';
-import { reloadAddonInGame } from './addonReload';
+import { reloadAddonInGame, reloadSummary, type ReloadResult } from './addonReload';
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const STARTUP_KEY = 'roexi_check_updates_startup';
 const SKIP_APP_KEY = 'roexi_skip_app_v';
@@ -25,7 +27,7 @@ export default function UpdateBanner() {
   const [installing, setInstalling] = useState<'app' | 'addon' | null>(null);
   const [appPct, setAppPct] = useState<number | null>(null);
   const [addonDone, setAddonDone] = useState(false);
-  const [addonReloaded, setAddonReloaded] = useState(0);
+  const [addonReloaded, setAddonReloaded] = useState<ReloadResult | null>(null);
   const [err, setErr] = useState('');
 
   useEffect(() => {
@@ -62,7 +64,11 @@ export default function UpdateBanner() {
   const installAddon = async () => {
     if (!addon?.dir || !addonManifest) return;
     setInstalling('addon'); setErr('');
-    try { await installAddonUpdate(addon.dir, addonManifest); setAddonReloaded(await reloadAddonInGame()); setAddonManifest(null); setAddonDone(true); }
+    try {
+      await installAddonUpdate(addon.dir, addonManifest);
+      setAddonReloaded(await reloadAddonInGame());
+      setAddonManifest(null); setAddonDone(true);
+    }
     catch (e) { setErr(String(e)); }
     finally { setInstalling(null); }
   };
@@ -115,7 +121,7 @@ export default function UpdateBanner() {
           <motion.div key="done" {...collapse}>
             <div className="flex items-center gap-3 px-4 py-2 text-[12px]">
               <span className="text-emerald-300">Addon updated.</span>
-              <span className="text-fg-3">{addonReloaded ? `Reloaded on ${addonReloaded} client${addonReloaded === 1 ? '' : 's'}.` : 'No characters connected; it loads next time you start roexi in-game.'}</span>
+              <span className="text-fg-3">{cap(addonReloaded ? reloadSummary(addonReloaded) : 'no characters connected; it loads next time you start roexi in-game.')}</span>
               <button onClick={() => setAddonDone(false)} className="ml-auto text-fg-4 hover:text-fg text-[11px] px-2 py-1">Dismiss</button>
             </div>
           </motion.div>

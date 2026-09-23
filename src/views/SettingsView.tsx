@@ -8,7 +8,7 @@ import { useSettings, setSettings } from '../settings';
 import { useIpcBound, useKnownCharacters, useBoxes, removeChar, useAddonInfo, getManualAddonDir, setManualAddonDir } from '../bridge';
 import { relTime, useNowTick } from '../reltime';
 import { checkForUpdate, installUpdate, checkAddonUpdate, installAddonUpdate, readInstalledAddonVersion, type Update, type ManifestAddon, type AddonInstallResult } from '../updater';
-import { reloadAddonInGame } from '../addonReload';
+import { reloadAddonInGame, reloadSummary, type ReloadResult } from '../addonReload';
 import { getStartupCheck, setStartupCheck } from '../UpdateBanner';
 
 function CharactersSettings() {
@@ -94,7 +94,7 @@ function AddonUpdateRow() {
   const [status, setStatus] = useState<'idle' | 'checking' | 'none' | 'available' | 'installing' | 'installed' | 'error'>('idle');
   const [manifest, setManifest] = useState<ManifestAddon | null>(null);
   const [result, setResult] = useState<AddonInstallResult | null>(null);
-  const [reloaded, setReloaded] = useState<number | null>(null);
+  const [reloadResult, setReloadResult] = useState<ReloadResult | null>(null);
   const [msg, setMsg] = useState('');
   const manual = getManualAddonDir();
 
@@ -112,7 +112,7 @@ function AddonUpdateRow() {
     setStatus('installing'); setMsg('');
     try {
       const res = await installAddonUpdate(addon.dir, manifest); setResult(res);
-      setReloaded(await reloadAddonInGame());
+      setReloadResult(await reloadAddonInGame());
       setStatus('installed');
     } catch (e) { setMsg(String(e)); setStatus('error'); }
   };
@@ -126,7 +126,7 @@ function AddonUpdateRow() {
   };
 
   const note =
-    status === 'installed' ? `Installed v${result?.installed_version} — ${reloaded ? `reloaded on ${reloaded} client${reloaded === 1 ? '' : 's'}.` : 'no characters connected; it loads next time you start roexi in-game.'}`
+    status === 'installed' ? `Installed v${result?.installed_version} — ${reloadResult ? reloadSummary(reloadResult) : 'no characters connected; it loads next time you start roexi in-game.'}`
       : status === 'error' ? (msg || 'Addon update check failed.')
         : status === 'installing' ? 'Installing addon…'
           : status === 'available' ? `Addon update available: v${manifest?.version}`

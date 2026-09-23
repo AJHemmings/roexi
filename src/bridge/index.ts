@@ -54,6 +54,10 @@ const subscribe = (cb: () => void) => { listeners.add(cb); return () => { listen
 export function useBoxes(): Box[] { return useSyncExternalStore(subscribe, () => liveSnapshot, () => liveSnapshot); }
 export function useKnownCharacters(): KnownChar[] { return useSyncExternalStore(subscribe, () => knownSnapshot, () => knownSnapshot); }
 export function getKnownCharacters(): KnownChar[] { return knownSnapshot; }
+/** Raw, un-debounced live connections (unlike useBoxes' snapshot, which lags behind a 150ms rebuild
+ * debounce). For one-off reads like addonReload's per-connection version check, which must see a
+ * connection the instant its hello lands. */
+export function getBoxes(): Box[] { return [...byConn.values()]; }
 /** Raw, un-debounced active ids for a connection. Batch diffs read this, never the KnownChar snapshot. */
 export function getBoxActiveIds(conn: number): number[] { return (byConn.get(conn)?.active ?? []).map((a) => a.id); }
 export function getBoxActiveAt(conn: number): number { return byConn.get(conn)?.activeAt ?? 0; }
