@@ -28,8 +28,11 @@ export function endPending(key: number): void {
 
 export function getPending(): PendingEntry[] { return entries; }
 
+// Module-level so its identity is stable: an inline arrow would make every subscribed row resubscribe on each render.
+const subscribe = (cb: () => void) => { subs.add(cb); return () => { subs.delete(cb); }; };
+
 export function usePending(): PendingEntry[] {
-  return useSyncExternalStore((cb) => { subs.add(cb); return () => { subs.delete(cb); }; }, () => entries, () => entries);
+  return useSyncExternalStore(subscribe, () => entries, () => entries);
 }
 
 // Pure selectors — take the list explicitly so components pass usePending()'s value and tests pass literals.

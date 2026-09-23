@@ -38,7 +38,7 @@ export function ActionBar({ known, selectedIds, byId, showRemove, onAdd, onRemov
     <div className="sticky bottom-0 z-10 bg-surface-raised border-t border-line px-3.5 py-3 flex flex-col gap-2">
       <TargetPicker known={known} selected={targets} onChange={setTargets} />
       <div className="flex items-center gap-2">
-        <button disabled={inScope.length === 0 || addBlocked} onClick={() => onAdd(inScope)}
+        <button disabled={inScope.length === 0 || addBlocked} title={addBlocked ? "Waiting for a character's batch to finish" : undefined} onClick={() => onAdd(inScope)}
           className="le-tap inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold rounded-md bg-accent text-on-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors">{addBlocked && <Spinner />}Add ({selectedIds.length})</button>
         {showRemove && (
           <button onClick={() => setRemoveModal(true)}

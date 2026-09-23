@@ -50,7 +50,7 @@ export function TargetPickerModal({ known, defaultSelected, confirmLabel, onConf
           <TargetPicker known={known} selected={targets} onChange={setTargets} />
           <div className="flex justify-end gap-2 pt-1">
             <button onClick={close} className="le-tap px-3 py-1.5 text-[12px] font-semibold rounded-md border border-line bg-field text-fg-3 hover:text-fg-2 transition-colors">Cancel</button>
-            <button disabled={targets.length === 0 || blocked} onClick={() => { onConfirm(targets); close(); }}
+            <button disabled={targets.length === 0 || blocked} title={blocked ? "Waiting for a character's batch to finish" : undefined} onClick={() => { onConfirm(targets); close(); }}
               className="le-tap inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold rounded-md bg-accent text-on-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors">{blocked && <Spinner />}{confirmLabel}</button>
           </div>
         </div>
