@@ -2,13 +2,16 @@ import { useState, type ReactNode } from 'react';
 import { Collapse } from '../overlay';
 import type { CatalogEntry } from '../roe/types';
 
-export function ObjectiveRow({ id, entry, checkbox, checked, onToggle, countLabel, badges, chips, actions, expanded }: {
+export function ObjectiveRow({ id, entry, checkbox, checked, onToggle, countLabel, partial = false, badges, chips, actions, expanded }: {
   id: number;
   entry?: CatalogEntry;
   checkbox: boolean;
   checked: boolean;
   onToggle: () => void;
   countLabel?: string;
+  /** Not every character in scope has this objective: flags the row with an amber edge and count so
+   * gaps stand out while scanning the Active tab. */
+  partial?: boolean;
   badges?: ReactNode;
   chips?: ReactNode;
   /** Rendered after everything else, at the true trailing edge of the row — for a per-row overflow
@@ -19,7 +22,7 @@ export function ObjectiveRow({ id, entry, checkbox, checked, onToggle, countLabe
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <div>
+    <div className={`border-l-2 ${partial ? 'border-l-amber-300/70' : 'border-l-transparent'}`}>
       <div className="flex items-center gap-2 px-3.5 py-2.5">
         {checkbox && (
           <input type="checkbox" checked={checked} onChange={onToggle} aria-label={entry?.n ?? `Unknown #${id}`}
@@ -31,7 +34,7 @@ export function ObjectiveRow({ id, entry, checkbox, checked, onToggle, countLabe
         </button>
         {badges}
         {chips}
-        {countLabel && <span className="text-[11px] tabular-nums text-fg-4 shrink-0">{countLabel}</span>}
+        {countLabel && <span className={`text-[11px] tabular-nums shrink-0 ${partial ? 'text-amber-300' : 'text-fg-4'}`}>{countLabel}</span>}
         {actions}
       </div>
       {expanded && <Collapse open={open} className="px-3.5 pb-2.5">{expanded}</Collapse>}
