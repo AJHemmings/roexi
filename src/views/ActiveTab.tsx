@@ -2,27 +2,53 @@ import { useMemo, useState } from 'react';
 import { ObjectiveRow } from '../components/ObjectiveRow';
 import { ProgressBar } from '../components/ProgressBar';
 import { RowMenu } from '../components/RowMenu';
-import { runRemove } from '../roe/batch';
-import { computeRemoveDefault, resolveTargets } from '../roe/targets';
+import { runAdd, runRemove } from '../roe/batch';
+import { addBlockReason, computeRemoveDefault, resolveTargets, type AddBlockReason } from '../roe/targets';
+import { Spinner } from '../components/Spinner';
+import { usePending, isCharBusy, pendingFor } from '../roe/pending';
 import { TargetPickerModal } from '../components/TargetPicker';
 import { MAX_ACTIVE } from '../roe/types';
 import type { KnownChar, CatalogEntry } from '../roe/types';
 
-/** Deliberately NOT consolidated with RowMenu's Remove actions: this is a separate surface for
- * viewing per-character detail (including the actual progress bar) with a quick inline remove,
- * while RowMenu handles global remove actions across the roster. Keep both — don't "clean up"
- * this duplication. */
-function ExpandedActive({ id, scope, entry }: { id: number; scope: KnownChar[]; entry?: CatalogEntry }) {
-  const withIt = scope.filter((c) => c.active.some((a) => a.id === id));
+const ADD_BLOCK_LABEL: Record<AddBlockReason, string> = {
+  auto: 'auto daily', active: 'active', completed: 'completed', offline: 'offline', full: `full (${MAX_ACTIVE}/${MAX_ACTIVE})`,
+};
+
+/** Every character in scope for this objective: those who have it get their progress bar and a quick
+ * Remove; those who don't get Add, or a disabled Add plus the reason (addBlockReason) when the game
+ * wouldn't accept it. Deliberately NOT consolidated with RowMenu's Add/Remove actions: this is the
+ * per-character detail surface, RowMenu handles roster-wide actions. Keep both — don't "clean up" this
+ * duplication. In single-character mode scope is one character who always has the objective, so Add
+ * only ever appears here in All mode — that's expected. */
+function ExpandedActive({ id, scope, entry, byId }: { id: number; scope: KnownChar[]; entry?: CatalogEntry; byId: Map<number, CatalogEntry> }) {
+  const pending = usePending();
   return (
     <div className="flex flex-col gap-1.5">
-      {withIt.map((c) => {
-        const p = c.active.find((a) => a.id === id)!.p;
+      {scope.map((c) => {
+        const busy = isCharBusy(pending, c.name);
+        const spinning = pendingFor(pending, c.name, id);
+        const act = c.active.find((a) => a.id === id);
+        if (act) {
+          return (
+            <div key={c.name} className="flex items-center gap-2 text-[11px] text-fg-3">
+              <span className="font-semibold">{c.name}</span>
+              <ProgressBar p={act.p} online={c.online} entry={entry} />
+              <button disabled={busy} onClick={() => void runRemove([c], [id])}
+                className="le-tap ml-auto inline-flex items-center gap-1 text-red-300/80 hover:text-red-300 font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-red-300/80">
+                {spinning === 'remove' ? <><Spinner />Removing…</> : 'Remove'}
+              </button>
+            </div>
+          );
+        }
+        const reason = addBlockReason(c, id, byId);
         return (
           <div key={c.name} className="flex items-center gap-2 text-[11px] text-fg-3">
             <span className="font-semibold">{c.name}</span>
-            <ProgressBar p={p} online={c.online} entry={entry} />
-            <button onClick={() => void runRemove([c], [id])} className="le-tap ml-auto text-red-300/80 hover:text-red-300 font-semibold">Remove</button>
+            <span className="text-fg-4">{reason ? ADD_BLOCK_LABEL[reason] : 'not active'}</span>
+            <button disabled={reason !== null || busy} onClick={() => void runAdd([c], [id], byId)}
+              className="le-tap ml-auto inline-flex items-center gap-1 text-accent/90 hover:text-accent font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-accent/90">
+              {spinning === 'add' ? <><Spinner />Adding…</> : 'Add'}
+            </button>
           </div>
         );
       })}
@@ -79,7 +105,7 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
             <ObjectiveRow key={id} id={id} entry={entry} checkbox checked={selected.includes(id)} onToggle={() => onToggle(id)}
               countLabel={`${count}/${scope.length}`}
               actions={<RowMenu id={id} known={known} charSelected={charSelected} selectedIds={selected} byId={byId} onOpenPicker={() => setRowRemoveId(id)} onClearSelected={clearSelected} />}
-              expanded={<ExpandedActive id={id} scope={scope} entry={entry} />} />
+              expanded={<ExpandedActive id={id} scope={scope} entry={entry} byId={byId} />} />
           );
         })}
         {rowRemoveId != null && (
