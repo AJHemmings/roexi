@@ -29,13 +29,16 @@ export function ActionBar({ known, selectedIds, byId, showRemove, onAdd, onRemov
   if (selectedIds.length === 0) return null;
 
   const removeDefault = computeRemoveDefault(known, selectedIds);
-  const addBlocked = anyBusy(pending, targets);
+  // targets persists across scope changes (see above), so it can hold names that are no longer in
+  // `known`. Gate and send on the visible ticks only; the stored ticks come back if scope widens again.
+  const inScope = targets.filter((n) => known.some((c) => c.name === n));
+  const addBlocked = anyBusy(pending, inScope);
 
   return (
     <div className="sticky bottom-0 z-10 bg-surface-raised border-t border-line px-3.5 py-3 flex flex-col gap-2">
       <TargetPicker known={known} selected={targets} onChange={setTargets} />
       <div className="flex items-center gap-2">
-        <button disabled={targets.length === 0 || addBlocked} onClick={() => onAdd(targets)}
+        <button disabled={inScope.length === 0 || addBlocked} onClick={() => onAdd(inScope)}
           className="le-tap inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold rounded-md bg-accent text-on-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors">{addBlocked && <Spinner />}Add ({selectedIds.length})</button>
         {showRemove && (
           <button onClick={() => setRemoveModal(true)}
