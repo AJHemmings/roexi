@@ -3,9 +3,9 @@ import { ObjectiveRow } from '../components/ObjectiveRow';
 import { ProgressBar } from '../components/ProgressBar';
 import { RowMenu } from '../components/RowMenu';
 import { runAdd, runRemove } from '../roe/batch';
-import { addBlockReason, computeRemoveDefault, resolveTargets, type AddBlockReason } from '../roe/targets';
+import { addBlockReason, computeAddDefault, computeRemoveDefault, resolveTargets, type AddBlockReason } from '../roe/targets';
 import { Spinner } from '../components/Spinner';
-import { usePending, isCharBusy, pendingFor } from '../roe/pending';
+import { usePending, isCharBusy, isIdPending, pendingFor } from '../roe/pending';
 import { TargetPickerModal } from '../components/TargetPicker';
 import { MAX_ACTIVE } from '../roe/types';
 import type { KnownChar, CatalogEntry } from '../roe/types';
@@ -67,6 +67,8 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
   clearSelected: () => void;
 }) {
   const [rowRemoveId, setRowRemoveId] = useState<number | null>(null);
+  const [rowAddId, setRowAddId] = useState<number | null>(null);
+  const pending = usePending();
   const rows = useMemo(() => {
     const ids = new Set<number>();
     for (const c of scope) for (const a of c.active) ids.add(a.id);
@@ -104,7 +106,9 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
           return (
             <ObjectiveRow key={id} id={id} entry={entry} checkbox checked={selected.includes(id)} onToggle={() => onToggle(id)}
               countLabel={`${count}/${scope.length}`}
-              actions={<RowMenu id={id} known={known} charSelected={charSelected} selectedIds={selected} byId={byId} onOpenPicker={() => setRowRemoveId(id)} onClearSelected={clearSelected} />}
+              chips={isIdPending(pending, id) ? <Spinner className="w-3 h-3 text-fg-4" /> : undefined}
+              actions={<RowMenu id={id} known={known} charSelected={charSelected} selectedIds={selected} byId={byId}
+                onOpenRemovePicker={() => setRowRemoveId(id)} onOpenAddPicker={() => setRowAddId(id)} onClearSelected={clearSelected} />}
               expanded={<ExpandedActive id={id} scope={scope} entry={entry} byId={byId} />} />
           );
         })}
@@ -112,6 +116,11 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
           <TargetPickerModal known={known} defaultSelected={computeRemoveDefault(known, [rowRemoveId])}
             confirmLabel="Remove" onClose={() => setRowRemoveId(null)}
             onConfirm={(targets) => void runRemove(resolveTargets(known, targets), [rowRemoveId])} />
+        )}
+        {rowAddId != null && (
+          <TargetPickerModal known={known} defaultSelected={computeAddDefault(known, [rowAddId], byId)}
+            confirmLabel="Add" onClose={() => setRowAddId(null)}
+            onConfirm={(targets) => void runAdd(resolveTargets(known, targets), [rowAddId], byId)} />
         )}
       </div>
     </div>
