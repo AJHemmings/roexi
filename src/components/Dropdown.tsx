@@ -54,7 +54,7 @@ export function Dropdown({ trigger, items, menuWidth = 'w-48' }: {
                 initial={{ opacity: 0, y: pos.up ? 4 : -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: pos.up ? 4 : -4, scale: 0.97 }} transition={{ duration: 0.14, ease: EASE_OUT }}>
                 {items.map((it) => (
                   <Fragment key={it.key}>
-                    {it.separatorBefore && <div className="my-1 border-t border-line" />}
+                    {it.separatorBefore && <div role="separator" className="my-1 border-t border-line" />}
                     <button type="button" disabled={it.disabled} onMouseDown={(e) => { e.preventDefault(); if (it.disabled) return; it.onClick(); setOpen(false); }}
                       className="w-full text-left px-3 py-1.5 text-xs text-fg-2 hover:bg-accent hover:text-on-accent disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-fg-2 transition-colors">
                       {it.label}
