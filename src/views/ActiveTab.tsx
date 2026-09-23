@@ -35,7 +35,7 @@ function ExpandedActive({ id, scope, entry, byId }: { id: number; scope: KnownCh
               <span className="font-semibold">{c.name}</span>
               <ProgressBar p={act.p} online={c.online} entry={entry} />
               <button disabled={busy} onClick={() => void runRemove([c], [id])}
-                className="le-tap ml-auto inline-flex items-center gap-1 text-red-300/80 hover:text-red-300 font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-red-300/80">
+                className="le-tap inline-flex items-center gap-1 text-red-300/80 hover:text-red-300 font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-red-300/80">
                 {spinning === 'remove' ? <><Spinner />Removing…</> : 'Remove'}
               </button>
             </div>
@@ -47,7 +47,7 @@ function ExpandedActive({ id, scope, entry, byId }: { id: number; scope: KnownCh
             <span className="font-semibold">{c.name}</span>
             <span className="text-fg-4">{reason ? ADD_BLOCK_LABEL[reason] : 'not active'}</span>
             <button disabled={reason !== null || busy} onClick={() => void runAdd([c], [id], byId)}
-              className="le-tap ml-auto inline-flex items-center gap-1 text-accent/90 hover:text-accent font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-accent/90">
+              className="le-tap inline-flex items-center gap-1 text-accent/90 hover:text-accent font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-accent/90">
               {spinning === 'add' ? <><Spinner />Adding…</> : 'Add'}
             </button>
           </div>
