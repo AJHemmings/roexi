@@ -195,6 +195,22 @@ export function isTypoPair(a: string, b: string): boolean {
   return x.length >= 5 && y.length >= 5 && editDistance(x, y) <= 2;
 }
 
+// The game lists Unity Wanted NMs in three sections, but the wiki only documents the first, so tiers 2
+// and 3 used to fall through to the generic "Unity" bucket. Each tier is a fixed block of ids in the
+// game's record table, so they're filed by id. Only Subjugation names count: the tier 3 block also
+// holds the Escha Conflict objectives (901-912). The in-game section names aren't in any source we
+// have, hence the neutral I/II/III.
+export const UNITY_WANTED_TIERS: [number, number, string][] = [
+  [817, 837, 'Unity (Wanted I)'],
+  [854, 869, 'Unity (Wanted II)'],
+  [891, 924, 'Unity (Wanted III)'],
+];
+
+function unityWantedTier(e: CatalogEntry): string | null {
+  if (!/^subj(ugation|\.):/i.test(e.n)) return null;
+  return UNITY_WANTED_TIERS.find(([lo, hi]) => e.id >= lo && e.id <= hi)?.[2] ?? null;
+}
+
 export function joinSources(mapping: MappingEntry[], wikiRows: WikiRow[]): { entries: CatalogEntry[]; report: JoinReport } {
   const wikiBy = new Map<string, WikiRow[]>();
   for (const r of wikiRows) {
@@ -259,6 +275,8 @@ export function joinSources(mapping: MappingEntry[], wikiRows: WikiRow[]): { ent
   for (const r of wikiRows) if (!used.has(r)) report.unmatchedWiki.push(`${r.cat}/${r.sub}:${r.name}`);
   for (const e of entries) {
     if (e.id >= AUTO_RANGE[0] && e.id <= AUTO_RANGE[1]) { e.auto = true; e.cat = 'Other'; e.sub = 'Daily Objectives'; }
+    const tier = unityWantedTier(e);
+    if (tier) { e.cat = 'Unity'; e.sub = tier; }
   }
   return { entries, report };
 }

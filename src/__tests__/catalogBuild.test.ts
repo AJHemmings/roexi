@@ -81,6 +81,26 @@ describe('joinSources', () => {
     expect(entries[0]).toMatchObject({ id: 4013, auto: true, cat: 'Other', sub: 'Daily Objectives' });
     expect(report.none).toBe(1);
   });
+
+  it('files Unity Wanted NMs into their three tiers by id, whether or not the wiki lists them', () => {
+    const { entries } = joinSources([
+      { id: 817, n: 'Subjugation: Hugemaw Harold (UC)' },
+      { id: 854, n: 'Subjugation: Sybaritic Samantha (UC)' },
+      { id: 855, n: 'Subj.: Keeper of Heiligtum (UC)' },
+      { id: 915, n: 'Subjugation: Hidhaegg (UC)' },
+    ], [row('Subjugation: Hugemaw Harold (UC)', 'Unity', 'Unity (Wanted)')]);
+    expect(entries.map((e) => [e.id, e.cat, e.sub])).toEqual([
+      [817, 'Unity', 'Unity (Wanted I)'],
+      [854, 'Unity', 'Unity (Wanted II)'],
+      [855, 'Unity', 'Unity (Wanted II)'],
+      [915, 'Unity', 'Unity (Wanted III)'],
+    ]);
+  });
+
+  it('leaves non-NM objectives inside a Wanted id range alone', () => {
+    const { entries } = joinSources([{ id: 901, n: "Conflict: Escha - Zi'Tah VI" }], []);
+    expect(entries[0]).toMatchObject({ cat: 'Combat (Region)', sub: 'Combat (Region)' });
+  });
 });
 
 describe('isTypoPair', () => {
