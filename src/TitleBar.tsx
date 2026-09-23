@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getVersion } from '@tauri-apps/api/app';
 import { Tip } from './ui';
-import { inTauri, useIpcBound } from './bridge';
+import { inTauri, useIpcStatus } from './bridge';
 
 const win = () => getCurrentWindow();
 const ONTOP_KEY = 'roexi-ontop';
@@ -34,7 +34,7 @@ function PinButton() {
 
 export default function TitleBar() {
   const [version, setVersion] = useState('');
-  const bound = useIpcBound();
+  const { bound, error } = useIpcStatus();
   useEffect(() => { if (inTauri) getVersion().then(setVersion).catch(() => {}); }, []);
   return (
     <header data-tauri-drag-region className="h-9 shrink-0 flex items-center bg-nav border-b border-line select-none pl-3">
@@ -46,7 +46,7 @@ export default function TitleBar() {
           <span className="group relative pointer-events-auto flex items-center gap-1 text-[10px] font-semibold text-red-300">
             <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
             Listener not bound
-            <Tip label="Port 24244 is in use; retrying every few seconds" side="bottom" />
+            <Tip label={`${error ?? 'Port 24244 is unavailable.'} Retrying every few seconds.`} side="bottom" />
           </span>
         )}
       </div>

@@ -5,8 +5,9 @@ import { Group, Row, RowStacked, Segmented, Select, Slider, Toggle } from '../ui
 import { useTheme, THEMES } from '../theme';
 import { useMode, setMode } from '../windowSize';
 import { useSettings, setSettings } from '../settings';
-import { useIpcBound, useKnownCharacters, useBoxes, removeChar, useAddonInfo, getManualAddonDir, setManualAddonDir } from '../bridge';
+import { useIpcStatus, useKnownCharacters, useBoxes, removeChar, useAddonInfo, getManualAddonDir, setManualAddonDir } from '../bridge';
 import { relTime, useNowTick } from '../reltime';
+import { resolveAddonDir } from '../addonDir';
 import { checkForUpdate, installUpdate, checkAddonUpdate, installAddonUpdate, readInstalledAddonVersion, type Update, type ManifestAddon, type AddonInstallResult } from '../updater';
 import { reloadAddonInGame, reloadSummary, type ReloadResult } from '../addonReload';
 import { getStartupCheck, setStartupCheck } from '../UpdateBanner';
@@ -118,11 +119,13 @@ function AddonUpdateRow() {
   };
   const pickFolder = async () => {
     setMsg(''); setStatus('idle');
-    const picked = await openDialog({ directory: true, multiple: false, title: 'Select the roexi addon folder' });
+    let picked: string | string[] | null;
+    try { picked = await openDialog({ directory: true, multiple: false, title: 'Select your Windower addons folder (or addons\\roexi)' }); }
+    catch (e) { setMsg(`Couldn't open the folder picker: ${String(e)}`); setStatus('error'); return; }
     if (typeof picked !== 'string') return;
-    const ver = await readInstalledAddonVersion(picked);
-    if (ver == null) { setManualAddonDir(null); setMsg('That folder has no roexi.lua. Pick your Windower addons/roexi folder.'); setStatus('error'); return; }
-    setManualAddonDir(picked);
+    const dir = await resolveAddonDir(picked, async (d) => (await readInstalledAddonVersion(d)) != null);
+    if (!dir) { setMsg('Pick your Windower addons folder, or the addons\\roexi folder inside it.'); setStatus('error'); return; }
+    setManualAddonDir(dir);
   };
 
   const note =
@@ -160,7 +163,7 @@ export default function SettingsView() {
   const [theme, setTheme] = useTheme();
   const winMode = useMode();
   const settings = useSettings();
-  const bound = useIpcBound();
+  const { bound, error: ipcError } = useIpcStatus();
   const boxes = useBoxes();
   return (
     <div className="max-w-xl mx-auto p-5">
@@ -179,7 +182,7 @@ export default function SettingsView() {
       </Group>
       <CharactersSettings />
       <Group title="Connection">
-        <Row label="Addon listener" desc={bound ? 'Listening on 127.0.0.1:24244' : 'Port 24244 is in use by another program; roexi retries every few seconds.'}>
+        <Row label="Addon listener" desc={bound ? 'Listening on 127.0.0.1:24244' : `${ipcError ?? 'Port 24244 is unavailable.'} roexi retries every few seconds.`}>
           <span className={`text-[10px] font-semibold uppercase tracking-wide ${bound ? 'text-emerald-400/80' : 'text-red-300'}`}>{bound ? 'Bound' : 'Not bound'}</span>
         </Row>
         <Row label="Connected addons" desc="One per game client with the roexi addon loaded.">
