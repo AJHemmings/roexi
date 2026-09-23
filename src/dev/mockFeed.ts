@@ -5,6 +5,9 @@ import { ingestLine, seedPersisted, setCommandSink } from '../bridge';
 
 const NAMES = ['Aldric', 'Brienne', 'Cassius', 'Delphine', 'Evander', 'Fiora'];
 const SEED_ACTIVE = [1, 12, 77, 215, 3002, 4013, 1200];
+// Long enough to see the in-flight guard (disabled buttons + spinners) in the browser; the real addon
+// answers in roughly a second.
+const REPLY_DELAY_MS = 1500;
 
 type MockChar = { conn: number; name: string; id: number; active: Map<number, number> };
 
@@ -33,6 +36,6 @@ export function startMockFeed() {
     window.setTimeout(() => {
       if (msg.seq != null) ingestLine(conn, JSON.stringify({ t: 'seqack', seq: msg.seq, ok: true }));
       if (msg.cmd !== 'sync') ingestLine(conn, roeLine(m));
-    }, 400);
+    }, REPLY_DELAY_MS);
   });
 }
