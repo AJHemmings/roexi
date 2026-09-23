@@ -43,7 +43,8 @@ export default function RecordsView() {
     <div className="h-full flex flex-col">
       <div className="p-3 flex flex-col gap-2.5 shrink-0">
         <div className="flex items-center gap-2">
-          <SearchInput value={query} onChange={setQuery} placeholder="Filter objectives…" />
+          <SearchInput value={query} onChange={setQuery} placeholder="Filter objectives…"
+            className="bg-field border border-line rounded-md px-3 py-1.5 text-xs text-fg-2 placeholder-fg-4 outline-none focus:border-accent/50 transition-colors" />
         </div>
         <CharScopeSelect known={known} charSelected={charSelected} setCharSelected={setCharSelected} />
         <SectionTabs value={tab} onChange={setTab} tabs={[{ id: 'active', label: 'Active' }, { id: 'library', label: 'Library' }]} />
