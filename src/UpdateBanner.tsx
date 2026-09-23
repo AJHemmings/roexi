@@ -61,19 +61,23 @@ export default function UpdateBanner() {
     setInstalling('app'); setErr(''); setAppPct(0);
     try { await installUpdate(app, setAppPct); } catch (e) { setErr(String(e)); setInstalling(null); }
   };
-  const installAddon = async () => {
-    if (!addon?.dir || !addonManifest) return;
+  const installAddon = async (): Promise<boolean> => {
+    if (!addon?.dir || !addonManifest) return false;
     setInstalling('addon'); setErr('');
     try {
       await installAddonUpdate(addon.dir, addonManifest);
       setAddonReloaded(await reloadAddonInGame());
       setAddonManifest(null); setAddonDone(true);
+      return true;
     }
-    catch (e) { setErr(String(e)); }
+    catch (e) { setErr(String(e)); return false; }
     finally { setInstalling(null); }
   };
   const skipApp = () => { if (app) localStorage.setItem(SKIP_APP_KEY, app.version); setApp(null); };
   const skipAddon = () => { if (addonManifest) localStorage.setItem(SKIP_ADDON_KEY, addonManifest.version); setAddonManifest(null); };
+  // Addon first: the app install relaunches the app, which would wipe the banner before the addon ran.
+  // A failed addon step stops here so the error stays visible and the app isn't left half-updated.
+  const updateAll = async () => { if (await installAddon()) await installApp(); };
 
   if (!app && !addonManifest && !addonDone && !err) return null;
 
@@ -93,6 +97,20 @@ export default function UpdateBanner() {
       className="shrink-0 border-b border-accent/30 bg-accent/10 overflow-hidden"
     >
       <AnimatePresence initial={false}>
+        {app && addonManifest && (
+          <motion.div key="all" {...collapse}>
+            <div className="flex items-center gap-3 px-4 py-2 text-[12px]">
+              <span className="text-fg-2">2 updates available.</span>
+              <button
+                onClick={updateAll}
+                disabled={installing !== null}
+                className="ml-auto px-3 py-1 text-[11px] font-semibold rounded-md bg-accent text-on-accent hover:bg-accent-hover disabled:opacity-50 transition-colors"
+              >
+                Update all
+              </button>
+            </div>
+          </motion.div>
+        )}
         {app && (
           <motion.div key="app" {...collapse}>
             <Line
