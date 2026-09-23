@@ -7,6 +7,7 @@ import { addBlockReason, computeAddDefault, computeRemoveDefault, resolveTargets
 import { Spinner } from '../components/Spinner';
 import { usePending, isCharBusy, isIdPending, pendingFor } from '../roe/pending';
 import { TargetPickerModal } from '../components/TargetPicker';
+import { ActiveCountHeader } from '../components/ActiveCountHeader';
 import { MAX_ACTIVE } from '../roe/types';
 import type { KnownChar, CatalogEntry } from '../roe/types';
 
@@ -78,11 +79,7 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
       .sort((a, b) => (byId.get(a)?.n ?? `Unknown #${a}`).localeCompare(byId.get(b)?.n ?? `Unknown #${b}`));
   }, [scope, byId, query]);
 
-  // Only meaningful in single-character mode: the 30-active cap (MAX_ACTIVE) is per character,
-  // so "All" mode has no one count to show here.
-  const activeCount = charSelected !== null && scope.length > 0 && (
-    <div className="px-1 text-[12px] font-bold text-fg-2">{scope[0].name} — {scope[0].active.length}/{MAX_ACTIVE} active</div>
-  );
+  const header = <ActiveCountHeader scope={scope} single={charSelected !== null} />;
 
   if (scope.length === 0) {
     return <div className="p-6 text-center text-[12px] text-fg-4">Select at least one character above to see their active objectives.</div>;
@@ -90,7 +87,7 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
   if (rows.length === 0) {
     return (
       <div className="flex flex-col gap-2">
-        {activeCount}
+        {header}
         <div className="p-6 text-center text-[12px] text-fg-4">No active objectives{query ? ' match your search' : ' for this scope'}.</div>
       </div>
     );
@@ -98,7 +95,7 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
 
   return (
     <div className="flex flex-col gap-2">
-      {activeCount}
+      {header}
       <div className="rounded-xl bg-surface border border-line divide-y divide-line overflow-hidden">
         {rows.map((id) => {
           const entry = byId.get(id);
