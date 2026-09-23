@@ -4,6 +4,7 @@ import { buildAddPlan, buildRemovePlan, type AddPlan, type RemovePlan } from './
 import { diffAddResult, diffRemoveResult } from './diff';
 import { pushAddResult, pushRemoveResult, type AckStatus, type AddCharResult, type RemoveCharResult } from './results';
 import type { KnownChar, CatalogEntry } from './types';
+import { beginPending, endPending, getPending, anyBusy } from './pending';
 
 const ACK_TIMEOUT_MS = 15_000;
 const SETTLE_TIMEOUT_MS = 1_500;
@@ -25,9 +26,20 @@ async function sendAndSettle(conn: number, cmd: 'roeadd' | 'roecancel', ids: num
 }
 
 export async function runAdd(targets: KnownChar[], ids: number[], byId: Map<number, CatalogEntry>): Promise<void> {
-  const plans = buildAddPlan(targets, ids, byId);
-  const chars = await Promise.all(plans.map((plan) => runOneAdd(plan, targets)));
-  pushAddResult(chars);
+  const names = targets.map((t) => t.name);
+  // Backstop: the UI disables buttons for busy characters, so this should be unreachable. If a future
+  // caller gets here anyway, refuse the whole batch rather than send an overlapping one. Spec §4.7.
+  if (anyBusy(getPending(), names)) { console.warn('runAdd refused: a target already has a batch in flight', names); return; }
+  // Marked busy synchronously, before the first await, so a double-click lands on a disabled button.
+  // Released in `finally` so success, the no-response timeout, and a throw all unlock.
+  const key = beginPending('add', names, ids);
+  try {
+    const plans = buildAddPlan(targets, ids, byId);
+    const chars = await Promise.all(plans.map((plan) => runOneAdd(plan, targets)));
+    pushAddResult(chars);
+  } finally {
+    endPending(key);
+  }
 }
 
 async function runOneAdd(plan: AddPlan, targets: KnownChar[]): Promise<AddCharResult> {
@@ -42,9 +54,16 @@ async function runOneAdd(plan: AddPlan, targets: KnownChar[]): Promise<AddCharRe
 }
 
 export async function runRemove(targets: KnownChar[], ids: number[]): Promise<void> {
-  const plans = buildRemovePlan(targets, ids);
-  const chars = await Promise.all(plans.map((plan) => runOneRemove(plan, targets)));
-  pushRemoveResult(chars);
+  const names = targets.map((t) => t.name);
+  if (anyBusy(getPending(), names)) { console.warn('runRemove refused: a target already has a batch in flight', names); return; }
+  const key = beginPending('remove', names, ids);
+  try {
+    const plans = buildRemovePlan(targets, ids);
+    const chars = await Promise.all(plans.map((plan) => runOneRemove(plan, targets)));
+    pushRemoveResult(chars);
+  } finally {
+    endPending(key);
+  }
 }
 
 async function runOneRemove(plan: RemovePlan, targets: KnownChar[]): Promise<RemoveCharResult> {
