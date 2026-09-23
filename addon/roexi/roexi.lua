@@ -1,6 +1,6 @@
 _addon.name = 'roexi'
 _addon.author = 'Mak'
-_addon.version = '0.1.0-beta'
+_addon.version = '0.2.0-beta'
 _addon.commands = {'roexi'}
 
 local socket = require('socket')
@@ -199,6 +199,10 @@ local function dispatch(line)
         pcall(request_log)
     elseif msg.cmd == 'sync' then
         send_snapshot('self')
+    elseif msg.cmd == 'reload' then
+        -- Sent by the app right after it installs an addon update, so the new files load without
+        -- typing //lua reload in every client.
+        windower.send_command('lua reload roexi')
     end
 end
 

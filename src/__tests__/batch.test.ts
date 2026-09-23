@@ -3,6 +3,7 @@ import { ingestLine, dropConn, getKnownCharacters, setCommandSink } from '../bri
 import { runAdd, runRemove } from '../roe/batch';
 import { getResults, clearResults } from '../roe/results';
 import type { CatalogEntry } from '../roe/types';
+import { beginPending, endPending, getPending, isCharBusy, pendingFor } from '../roe/pending';
 
 const hello = (conn: number, name: string) => ingestLine(conn, JSON.stringify({ t: 'hello', id: conn, name }));
 const known = (name: string) => getKnownCharacters().find((c) => c.name === name)!;
@@ -94,5 +95,72 @@ describe('runRemove', () => {
     await vi.advanceTimersByTimeAsync(200);
     await p;
     expect(getResults()[0].chars[0]).toMatchObject({ name: 'Evander', status: 'ok', removed: [1], notRemoved: [] });
+  });
+});
+
+describe('in-flight lock', () => {
+  it('holds the character busy while runAdd runs and releases it afterwards', async () => {
+    hello(6, 'Gideon');
+    vi.advanceTimersByTime(200);
+    fakeAddon(new Map());
+    const p = runAdd([known('Gideon')], [1], byId);
+    // Synchronously busy — before any timer has run — so a second click can't slip in.
+    expect(isCharBusy(getPending(), 'Gideon')).toBe(true);
+    expect(pendingFor(getPending(), 'Gideon', 1)).toBe('add');
+    await vi.advanceTimersByTimeAsync(200);
+    await p;
+    expect(isCharBusy(getPending(), 'Gideon')).toBe(false);
+  });
+
+  it('holds the character busy while runRemove runs and releases it afterwards', async () => {
+    hello(7, 'Helena');
+    ingestLine(7, JSON.stringify({ t: 'roe', items: [{ id: 1, p: 0 }] }));
+    vi.advanceTimersByTime(200);
+    fakeAddon(new Map([[7, new Set([1])]]));
+    const p = runRemove([known('Helena')], [1]);
+    expect(pendingFor(getPending(), 'Helena', 1)).toBe('remove');
+    await vi.advanceTimersByTimeAsync(200);
+    await p;
+    expect(isCharBusy(getPending(), 'Helena')).toBe(false);
+  });
+
+  it('keeps the lock through a missing ack and releases it after the timeout', async () => {
+    hello(8, 'Ivo');
+    vi.advanceTimersByTime(200);
+    setCommandSink(() => { /* addon never answers */ });
+    const p = runAdd([known('Ivo')], [1], byId);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(isCharBusy(getPending(), 'Ivo')).toBe(true);
+    await vi.advanceTimersByTimeAsync(10_000); // past ack (15s) + settle (1.5s)
+    await p;
+    expect(isCharBusy(getPending(), 'Ivo')).toBe(false);
+  });
+
+  it('releases the lock when sending throws', async () => {
+    hello(9, 'Juno');
+    vi.advanceTimersByTime(200);
+    setCommandSink(() => { throw new Error('boom'); });
+    await expect(runAdd([known('Juno')], [1], byId)).rejects.toThrow('boom');
+    expect(isCharBusy(getPending(), 'Juno')).toBe(false);
+  });
+
+  it('refuses the whole batch, sending nothing, if any target is already busy', async () => {
+    hello(10, 'Kael');
+    hello(11, 'Lysa');
+    vi.advanceTimersByTime(200);
+    let sent = 0;
+    setCommandSink(() => { sent++; });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const held = beginPending('add', ['Kael'], [1]);
+    try {
+      await runAdd([known('Kael'), known('Lysa')], [1], byId);
+      await runRemove([known('Kael')], [1]);
+      expect(sent).toBe(0);
+      expect(warn).toHaveBeenCalledTimes(2);
+      expect(isCharBusy(getPending(), 'Lysa')).toBe(false); // not left locked by the refused batch
+    } finally {
+      endPending(held);
+      warn.mockRestore();
+    }
   });
 });

@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect, type CSSProperties, type ReactNode, type MouseEvent, type RefObject } from 'react';
+import { Fragment, useState, useRef, useEffect, type CSSProperties, type ReactNode, type MouseEvent, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 
-export type DropdownItem = { key: string; label: string; disabled?: boolean; onClick: () => void };
+export type DropdownItem = { key: string; label: string; disabled?: boolean; separatorBefore?: boolean; onClick: () => void };
 
 /** Self-contained portal + flip-positioning dropdown: a trigger button that opens a small item
  * list, flipping upward when there isn't room below. Extracted from RowMenu (Active tab's
@@ -27,7 +27,7 @@ export function Dropdown({ trigger, items, menuWidth = 'w-48' }: {
     if (!open) return;
     const r = btn.current?.getBoundingClientRect();
     if (r) {
-      const menuH = items.length * 28 + 8;
+      const menuH = items.length * 28 + items.filter((i) => i.separatorBefore).length * 9 + 8;
       const up = r.bottom + menuH > window.innerHeight && r.top > menuH;
       setPos({ right: window.innerWidth - r.right, top: up ? r.top : r.bottom, up });
     }
@@ -53,10 +53,13 @@ export function Dropdown({ trigger, items, menuWidth = 'w-48' }: {
               <motion.div ref={menu} className={`fixed z-[61] ${menuWidth} rounded-md bg-[var(--color-bg)] border border-line-2 shadow-2xl py-1`} style={menuStyle}
                 initial={{ opacity: 0, y: pos.up ? 4 : -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: pos.up ? 4 : -4, scale: 0.97 }} transition={{ duration: 0.14, ease: EASE_OUT }}>
                 {items.map((it) => (
-                  <button key={it.key} type="button" disabled={it.disabled} onMouseDown={(e) => { e.preventDefault(); if (it.disabled) return; it.onClick(); setOpen(false); }}
-                    className="w-full text-left px-3 py-1.5 text-xs text-fg-2 hover:bg-accent hover:text-on-accent disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-fg-2 transition-colors">
-                    {it.label}
-                  </button>
+                  <Fragment key={it.key}>
+                    {it.separatorBefore && <div role="separator" className="my-1 border-t border-line" />}
+                    <button type="button" disabled={it.disabled} onMouseDown={(e) => { e.preventDefault(); if (it.disabled) return; it.onClick(); setOpen(false); }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-fg-2 hover:bg-accent hover:text-on-accent disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-fg-2 transition-colors">
+                      {it.label}
+                    </button>
+                  </Fragment>
                 ))}
               </motion.div>
             )}

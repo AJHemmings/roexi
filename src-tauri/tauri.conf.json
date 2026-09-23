@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "roexi",
-  "version": "0.1.0-beta",
+  "version": "0.2.0-beta",
   "identifier": "com.roexi.app",
   "build": {
     "frontendDist": "../dist",

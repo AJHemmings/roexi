@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { checkForUpdate, installUpdate, checkAddonUpdate, installAddonUpdate, type Update, type ManifestAddon } from './updater';
 import { useAddonInfo } from './bridge';
+import { reloadAddonInGame, reloadSummary, type ReloadResult } from './addonReload';
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const STARTUP_KEY = 'roexi_check_updates_startup';
 const SKIP_APP_KEY = 'roexi_skip_app_v';
@@ -22,8 +25,10 @@ export default function UpdateBanner() {
   const [app, setApp] = useState<Update | null>(null);
   const [addonManifest, setAddonManifest] = useState<ManifestAddon | null>(null);
   const [installing, setInstalling] = useState<'app' | 'addon' | null>(null);
+  const [updatingAll, setUpdatingAll] = useState(false);
   const [appPct, setAppPct] = useState<number | null>(null);
   const [addonDone, setAddonDone] = useState(false);
+  const [addonReloaded, setAddonReloaded] = useState<ReloadResult | null>(null);
   const [err, setErr] = useState('');
 
   useEffect(() => {
@@ -57,15 +62,27 @@ export default function UpdateBanner() {
     setInstalling('app'); setErr(''); setAppPct(0);
     try { await installUpdate(app, setAppPct); } catch (e) { setErr(String(e)); setInstalling(null); }
   };
-  const installAddon = async () => {
-    if (!addon?.dir || !addonManifest) return;
+  const installAddon = async (): Promise<boolean> => {
+    if (!addon?.dir || !addonManifest) return false;
     setInstalling('addon'); setErr('');
-    try { await installAddonUpdate(addon.dir, addonManifest); setAddonManifest(null); setAddonDone(true); }
-    catch (e) { setErr(String(e)); }
+    try {
+      await installAddonUpdate(addon.dir, addonManifest);
+      setAddonReloaded(await reloadAddonInGame());
+      setAddonManifest(null); setAddonDone(true);
+      return true;
+    }
+    catch (e) { setErr(String(e)); return false; }
     finally { setInstalling(null); }
   };
   const skipApp = () => { if (app) localStorage.setItem(SKIP_APP_KEY, app.version); setApp(null); };
   const skipAddon = () => { if (addonManifest) localStorage.setItem(SKIP_ADDON_KEY, addonManifest.version); setAddonManifest(null); };
+  // Addon first: the app install relaunches the app, which would wipe the banner before the addon ran.
+  // A failed addon step stops here so the error stays visible and the app isn't left half-updated.
+  // The in-game reload sends are fire-and-forget; installApp's download runs before relaunch, which is what gives them time to reach the clients.
+  const updateAll = async () => {
+    setUpdatingAll(true);
+    try { if (await installAddon()) await installApp(); } finally { setUpdatingAll(false); }
+  };
 
   if (!app && !addonManifest && !addonDone && !err) return null;
 
@@ -85,6 +102,20 @@ export default function UpdateBanner() {
       className="shrink-0 border-b border-accent/30 bg-accent/10 overflow-hidden"
     >
       <AnimatePresence initial={false}>
+        {app && addonManifest && (
+          <motion.div key="all" {...collapse}>
+            <div className="flex items-center gap-3 px-4 py-2 text-[12px]">
+              <span className="text-fg-2">2 updates available.</span>
+              <button
+                onClick={updateAll}
+                disabled={installing !== null || updatingAll}
+                className="ml-auto px-3 py-1 text-[11px] font-semibold rounded-md bg-accent text-on-accent hover:bg-accent-hover disabled:opacity-50 transition-colors"
+              >
+                Update all
+              </button>
+            </div>
+          </motion.div>
+        )}
         {app && (
           <motion.div key="app" {...collapse}>
             <Line
@@ -93,7 +124,7 @@ export default function UpdateBanner() {
               busyLabel={appPct == null ? 'Starting…' : `Downloading ${appPct}%`}
               onInstall={installApp}
               onDismiss={skipApp}
-              disabled={installing !== null}
+              disabled={installing !== null || updatingAll}
             />
           </motion.div>
         )}
@@ -105,7 +136,7 @@ export default function UpdateBanner() {
               busyLabel="Installing…"
               onInstall={installAddon}
               onDismiss={skipAddon}
-              disabled={installing !== null}
+              disabled={installing !== null || updatingAll}
             />
           </motion.div>
         )}
@@ -113,7 +144,7 @@ export default function UpdateBanner() {
           <motion.div key="done" {...collapse}>
             <div className="flex items-center gap-3 px-4 py-2 text-[12px]">
               <span className="text-emerald-300">Addon updated.</span>
-              <span className="text-fg-3">Run <span className="text-fg-2 font-semibold">//lua reload roexi</span> in-game to apply.</span>
+              <span className="text-fg-3">{cap(addonReloaded ? reloadSummary(addonReloaded) : 'no characters connected; it loads next time you start roexi in-game.')}</span>
               <button onClick={() => setAddonDone(false)} className="ml-auto text-fg-4 hover:text-fg text-[11px] px-2 py-1">Dismiss</button>
             </div>
           </motion.div>

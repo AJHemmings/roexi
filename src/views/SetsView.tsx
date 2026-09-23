@@ -8,6 +8,7 @@ import { TargetPickerModal } from '../components/TargetPicker';
 import { ResultCards } from '../components/ResultCard';
 import { EditSetModal } from '../components/SetModals';
 import { relTime, useNowTick } from '../reltime';
+import { Spinner } from '../components/Spinner';
 
 export default function SetsView() {
   const sets = useSets();
@@ -17,6 +18,13 @@ export default function SetsView() {
   const [removeId, setRemoveId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  // Which set's Apply/Remove batch is running, for that set's own button spinner. Local state is safe
+  // here because Sets rows stay mounted; *disabling* is the pickers' job (via the pending store).
+  const [running, setRunning] = useState<Record<string, 'apply' | 'remove'>>({});
+  const track = (setId: string, kind: 'apply' | 'remove', p: Promise<void>) => {
+    setRunning((r) => ({ ...r, [setId]: kind }));
+    void p.finally(() => setRunning((r) => { const next = { ...r }; delete next[setId]; return next; }));
+  };
   useNowTick();
 
   if (sets.length === 0) {
@@ -47,9 +55,9 @@ export default function SetsView() {
           </div>
           <div className="flex items-center gap-2">
             <button disabled={onlineKnown.length === 0} onClick={() => { setApplyId(s.id); setConfirmDelete(null); }}
-              className="le-tap px-3 py-1.5 text-[12px] font-bold rounded-md bg-accent text-on-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Apply</button>
+              className="le-tap inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold rounded-md bg-accent text-on-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors">{running[s.id] === 'apply' && <Spinner />}Apply</button>
             <button disabled={computeRemoveDefault(known, s.ids).length === 0} onClick={() => { setRemoveId(s.id); setConfirmDelete(null); }}
-              className="le-tap px-3 py-1.5 text-[12px] font-bold rounded-md bg-field border border-line text-fg-2 hover:text-fg transition-colors">Remove</button>
+              className="le-tap inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold rounded-md bg-field border border-line text-fg-2 hover:text-fg transition-colors">{running[s.id] === 'remove' && <Spinner />}Remove</button>
             <button onClick={() => { setEditId(s.id); setConfirmDelete(null); }}
               className="le-tap px-3 py-1.5 text-[12px] font-bold rounded-md bg-field border border-line text-fg-2 hover:text-fg transition-colors">Edit</button>
             <div className="ml-auto flex items-center gap-2">
@@ -72,7 +80,7 @@ export default function SetsView() {
         return (
           <TargetPickerModal known={known} defaultSelected={onlineKnown.map((c) => c.name)} confirmLabel="Apply"
             onClose={() => setApplyId(null)}
-            onConfirm={(targets) => { void runAdd(resolveTargets(known, targets), s.ids, catalog.byId); markApplied(s.id); }} />
+            onConfirm={(targets) => { track(s.id, 'apply', runAdd(resolveTargets(known, targets), s.ids, catalog.byId)); markApplied(s.id); }} />
         );
       })()}
       {removeId && (() => {
@@ -80,7 +88,7 @@ export default function SetsView() {
         return (
           <TargetPickerModal known={known} defaultSelected={computeRemoveDefault(known, s.ids)} confirmLabel="Remove"
             onClose={() => setRemoveId(null)}
-            onConfirm={(targets) => void runRemove(resolveTargets(known, targets), s.ids)} />
+            onConfirm={(targets) => track(s.id, 'remove', runRemove(resolveTargets(known, targets), s.ids))} />
         );
       })()}
       {editId && <EditSetModal set={sets.find((x) => x.id === editId)!} byId={catalog.byId} onClose={() => setEditId(null)} />}
