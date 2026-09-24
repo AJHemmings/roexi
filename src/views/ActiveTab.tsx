@@ -103,6 +103,7 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
           return (
             <ObjectiveRow key={id} id={id} entry={entry} checkbox checked={selected.includes(id)} onToggle={() => onToggle(id)}
               countLabel={`${count}/${scope.length}`}
+              partial={scope.length > 1 && count < scope.length}
               chips={isIdPending(pending, id) ? <Spinner className="w-3 h-3 text-fg-4" /> : undefined}
               actions={<RowMenu id={id} known={known} charSelected={charSelected} selectedIds={selected} byId={byId}
                 onOpenRemovePicker={() => setRowRemoveId(id)} onOpenAddPicker={() => setRowAddId(id)} onClearSelected={clearSelected} />}
