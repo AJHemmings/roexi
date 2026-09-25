@@ -3,6 +3,7 @@ import { useSticky } from '../sticky';
 import { Collapse } from '../overlay';
 import { ObjectiveRow } from '../components/ObjectiveRow';
 import { CharChips } from '../components/CharChips';
+import { LibrarySummary } from '../components/LibrarySummary';
 import { doneState } from '../roe/bitmap';
 import { formatProgress } from '../roe/format';
 import { showInRemaining } from '../roe/locks';
@@ -72,6 +73,7 @@ export default function LibraryTab({ catalog, scope, query, selected, onToggle, 
 
   return (
     <div className="flex flex-col gap-3">
+      <LibrarySummary scope={scope} catalog={catalog} />
       {catalog.tree.map((cat) => {
         const catIds = [...cat.subs.values()].flat();
         const catMatches = catIds.filter(visible);
