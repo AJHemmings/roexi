@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import { summarize, type Summary } from '../roe/locks';
 import { clearLocks } from '../bridge';
-import { HelpTip, Tip } from '../ui';
+import { HelpTip } from '../ui';
 import type { Catalog } from '../roe/catalog';
 import type { KnownChar } from '../roe/types';
 
@@ -41,7 +41,7 @@ export function LibrarySummary({ scope, catalog }: { scope: KnownChar[]; catalog
       {rows.map(({ c, s }) => (
         <span key={c.name} tabIndex={0} className="group relative px-2 py-0.5 rounded-md bg-field border border-line text-[11px] text-fg-3 outline-none">
           <span className="font-semibold text-fg-2">{c.name}</span> {s.open} open
-          <Tip label={breakdown(s)} side="bottom" />
+          <span role="tooltip" className="pointer-events-none absolute z-50 left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-surface-raised border border-line px-2 py-1 text-[11px] font-semibold text-fg-2 shadow-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus:opacity-100">{breakdown(s)}</span>
         </span>
       ))}
     </div>
