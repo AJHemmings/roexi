@@ -11,13 +11,14 @@ export function updateNoticeText(appVersion: string | null, addonVersion: string
 // conn → last text sent to it. A conn missing from the live list is forgotten, so a reconnect is told again.
 const sent = new Map<number, string>();
 
-export function sendUpdateNotices(conns: number[], text: string | null, send: (conn: number, line: string) => void = sendBoxCommand): void {
-  for (const c of [...sent.keys()]) if (!conns.includes(c)) sent.delete(c);
-  if (!text) return;
-  for (const c of conns) {
-    if (sent.get(c) === text) continue;
-    sent.set(c, text);
-    send(c, JSON.stringify({ cmd: 'notice', msg: text }));
+export function sendUpdateNotices(targets: { conn: number; text: string | null }[], send: (conn: number, line: string) => void = sendBoxCommand): void {
+  const live = new Set(targets.map((t) => t.conn));
+  for (const c of [...sent.keys()]) if (!live.has(c)) sent.delete(c);
+  for (const { conn, text } of targets) {
+    if (!text) continue;
+    if (sent.get(conn) === text) continue;
+    sent.set(conn, text);
+    send(conn, JSON.stringify({ cmd: 'notice', msg: text }));
   }
 }
 

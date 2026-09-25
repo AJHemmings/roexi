@@ -62,8 +62,12 @@ export default function UpdateBanner() {
   // Players often log in without looking at the app: repeat what the banner shows in each game's chat.
   // `app`/`addonManifest` are already null when the check is off, in dev, or the version was skipped.
   useEffect(() => {
-    sendUpdateNotices(boxes.map((b) => b.conn), updateNoticeText(app?.version ?? null, addonManifest?.version ?? null));
-  }, [boxes, app, addonManifest]);
+    if (installing !== null || updatingAll) return;
+    sendUpdateNotices(boxes.map((b) => ({
+      conn: b.conn,
+      text: updateNoticeText(app?.version ?? null, addonManifest && b.av !== addonManifest.version ? addonManifest.version : null),
+    })));
+  }, [boxes, app, addonManifest, installing, updatingAll]);
 
   const installApp = async () => {
     if (!app) return;
