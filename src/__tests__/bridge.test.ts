@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ingestLine, dropConn, getKnownCharacters, waitForRoeFrame, awaitSeqAck, removeChar } from '../bridge';
+import { ingestLine, dropConn, getKnownCharacters, waitForRoeFrame, awaitSeqAck, removeChar, recordRefusals, clearLocks } from '../bridge';
 
 // The bridge module is a singleton store, so every test uses its own conn id and character name.
 const hello = (id: number, name: string, over: Record<string, unknown> = {}) => JSON.stringify({ t: 'hello', id, name, ...over });
@@ -111,5 +111,51 @@ describe('bridge store', () => {
     expect(known('Hilde')).toBeDefined();
     await removeChar('Hilde');
     expect(known('Hilde')).toBeUndefined();
+  });
+});
+
+describe('locked marks', () => {
+  it('recordRefusals marks ids on the live character', () => {
+    ingestLine(61, hello(61, 'Lock1'));
+    recordRefusals(61, [5, 6], 1234);
+    vi.advanceTimersByTime(200);
+    expect([...known('Lock1')!.locked!.entries()]).toEqual([[5, 1234], [6, 1234]]);
+  });
+
+  it('never marks an id that is active right now', () => {
+    ingestLine(62, hello(62, 'Lock2'));
+    ingestLine(62, roe([{ id: 5, p: 0 }]));
+    recordRefusals(62, [5], 1);
+    vi.advanceTimersByTime(200);
+    expect(known('Lock2')!.locked?.has(5) ?? false).toBe(false);
+  });
+
+  it('marks survive a later ordinary frame and going offline', () => {
+    ingestLine(63, hello(63, 'Lock3'));
+    ingestLine(63, roe([]));
+    recordRefusals(63, [5], 1);
+    ingestLine(63, roe([{ id: 9, p: 0 }]));
+    dropConn(63);
+    expect(known('Lock3')!.locked?.get(5)).toBe(1);
+  });
+
+  it('a later roe frame with the id clears the mark', () => {
+    ingestLine(64, hello(64, 'Lock4'));
+    recordRefusals(64, [5], 1);
+    ingestLine(64, roe([{ id: 5, p: 0 }]));
+    vi.advanceTimersByTime(200);
+    expect(known('Lock4')!.locked?.has(5)).toBe(false);
+  });
+
+  it('clearLocks works online and offline', () => {
+    ingestLine(65, hello(65, 'Lock5'));
+    ingestLine(65, roe([]));
+    recordRefusals(65, [5], 1);
+    clearLocks('Lock5');
+    expect(known('Lock5')!.locked?.size).toBe(0);
+    recordRefusals(65, [6], 1);
+    dropConn(65);
+    clearLocks('Lock5');
+    expect(known('Lock5')!.locked?.size).toBe(0);
   });
 });

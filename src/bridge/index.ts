@@ -2,7 +2,7 @@ import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { appLocalDataDir } from '@tauri-apps/api/path';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { parseFrame, applyFrame } from './frames';
+import { parseFrame, applyFrame, sanitizeLocked } from './frames';
 import { doneFromPages } from '../roe/bitmap';
 import type { Box, KnownChar, PersistedChar } from '../roe/types';
 
@@ -31,6 +31,7 @@ function toKnown(name: string, b: Box | undefined, pc: PersistedChar | undefined
     doneIds,
     donePagesKnown,
     savedAt: pc?.savedAt,
+    locked: new Map(Object.entries(b?.locked ?? pc?.locked ?? {}).map(([k, at]) => [Number(k), at])),
   };
 }
 
@@ -143,6 +144,13 @@ async function cacheDir(): Promise<string> {
 }
 const safeName = (n: string) => n.replace(/[^A-Za-z0-9]/g, '_');
 
+function persistOf(b: Box): PersistedChar {
+  return {
+    name: b.name, id: b.id, main: b.main, sub: b.sub, zoneName: b.zoneName,
+    active: b.active, activeAt: b.activeAt, donePages: b.donePages, doneAt: b.doneAt, locked: b.locked, savedAt: Date.now(),
+  };
+}
+
 const diskTimers = new Map<string, ReturnType<typeof setTimeout>>();
 function schedulePersist(pc: PersistedChar) {
   const prev = persisted.get(pc.name);
@@ -165,7 +173,7 @@ async function loadPersisted() {
     const loaded = await Promise.all(files.filter((f) => f.toLowerCase().endsWith('.json')).map(async (f) => {
       try {
         const pc = JSON.parse(await invoke<string>('read_text_file', { path: f })) as PersistedChar;
-        return pc && pc.name ? pc : null;
+        return pc && pc.name ? { ...pc, locked: sanitizeLocked(pc.locked) } : null;
       } catch { return null; /* skip bad file */ }
     }));
     for (const pc of loaded) if (pc) persisted.set(pc.name, pc);
@@ -185,6 +193,38 @@ export async function removeChar(name: string): Promise<void> {
 
 /** Dev-only: lets the browser mock feed pretend a character was seen before. */
 export function seedPersisted(pc: PersistedChar) { persisted.set(pc.name, pc); scheduleRebuild(); }
+
+// ── locked marks (spec §3) ───────────────────────────────────────────────────
+/** Mark ids the game refused for this connection's character. Ids active right now are skipped:
+ * they clearly landed (a late 0x111), so marking them would be wrong. */
+export function recordRefusals(conn: number, ids: number[], at: number): void {
+  const b = byConn.get(conn);
+  if (!b) return;
+  const activeNow = new Set((b.active ?? []).map((a) => a.id));
+  const fresh = ids.filter((id) => !activeNow.has(id));
+  if (fresh.length === 0) return;
+  const locked = { ...(b.locked ?? {}) };
+  for (const id of fresh) locked[id] = at;
+  const box = { ...b, locked };
+  byConn.set(conn, box);
+  schedulePersist(persistOf(box));
+  rebuild();
+}
+
+/** "Forget locked marks": online or offline. Writes `{}` (not undefined) so the merge in schedulePersist clears it. */
+export function clearLocks(name: string): void {
+  let online = false;
+  for (const [conn, b] of byConn) {
+    if (b.name !== name) continue;
+    online = true;
+    const box = { ...b, locked: {} };
+    byConn.set(conn, box);
+    schedulePersist(persistOf(box));
+  }
+  const pc = persisted.get(name);
+  if (!online && pc) schedulePersist({ ...pc, locked: {}, savedAt: Date.now() });
+  rebuild();
+}
 
 // ── seq/ack and "next roe frame" waiters ─────────────────────────────────────
 let seqCounter = 1;
@@ -238,12 +278,7 @@ export function ingestLine(conn: number, line: string) {
   const r = applyFrame(prev, conn, f, Date.now(), seed);
   if (!r) return;
   byConn.set(conn, r.box);
-  if (r.persist) {
-    schedulePersist({
-      name: r.box.name, id: r.box.id, main: r.box.main, sub: r.box.sub, zoneName: r.box.zoneName,
-      active: r.box.active, activeAt: r.box.activeAt, donePages: r.box.donePages, doneAt: r.box.doneAt, savedAt: Date.now(),
-    });
-  }
+  if (r.persist) schedulePersist(persistOf(r.box));
   if (f.t === 'roe') for (const w of [...(roeWaiters.get(conn) ?? [])]) w.check();
   const identityChanged = !prev || prev.name !== r.box.name || prev.main !== r.box.main || prev.sub !== r.box.sub || prev.zoneName !== r.box.zoneName;
   if (r.persist || identityChanged) scheduleRebuild();
