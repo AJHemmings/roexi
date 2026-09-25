@@ -1,5 +1,5 @@
 // Per-character done/open/locked counts above the Library list. Spec §4.2.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { summarize, type Summary } from '../roe/locks';
 import { clearLocks } from '../bridge';
 import { HelpTip } from '../ui';
@@ -33,18 +33,23 @@ function Single({ c, s }: { c: KnownChar; s: Summary }) {
   );
 }
 
+function ScopeChip({ c, s }: { c: KnownChar; s: Summary }) {
+  const id = useId();
+  return (
+    <span tabIndex={0} aria-describedby={id} className="group relative px-2 py-0.5 rounded-md bg-field border border-line text-[11px] text-fg-3 outline-none">
+      <span className="font-semibold text-fg-2">{c.name}</span> {s.open} open
+      <span id={id} role="tooltip" className="pointer-events-none absolute z-50 left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-surface-raised border border-line px-2 py-1 text-[11px] font-semibold text-fg-2 shadow-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus:opacity-100">{breakdown(s)}</span>
+    </span>
+  );
+}
+
 export function LibrarySummary({ scope, catalog }: { scope: KnownChar[]; catalog: Catalog }) {
   const rows = useMemo(() => scope.map((c) => ({ c, s: summarize(c, catalog.entries, catalog.byId) })), [scope, catalog]);
   if (rows.length === 0) return null;
   if (rows.length === 1) return <div className="mb-2 px-1"><Single key={rows[0].c.name} c={rows[0].c} s={rows[0].s} /></div>;
   return (
     <div className="mb-2 px-1 flex flex-wrap gap-1.5">
-      {rows.map(({ c, s }) => (
-        <span key={c.name} tabIndex={0} className="group relative px-2 py-0.5 rounded-md bg-field border border-line text-[11px] text-fg-3 outline-none">
-          <span className="font-semibold text-fg-2">{c.name}</span> {s.open} open
-          <span role="tooltip" className="pointer-events-none absolute z-50 left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-surface-raised border border-line px-2 py-1 text-[11px] font-semibold text-fg-2 shadow-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus:opacity-100">{breakdown(s)}</span>
-        </span>
-      ))}
+      {rows.map(({ c, s }) => <ScopeChip key={c.name} c={c} s={s} />)}
     </div>
   );
 }
