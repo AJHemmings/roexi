@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseFrame, applyFrame } from '../bridge/frames';
+import { parseFrame, applyFrame, sanitizeLocked } from '../bridge/frames';
 import type { StateFrame } from '../bridge/frames';
 import type { Box } from '../roe/types';
 
@@ -99,5 +99,47 @@ describe('applyFrame', () => {
     const renamed = applyFrame(box, 7, parseFrame(hello({ t: 'self', name: 'Aldric2' })) as StateFrame, now + 5)!.box;
     expect(renamed.name).toBe('Aldric2');
     expect(renamed.active).toEqual([{ id: 77, p: 3 }]);
+  });
+});
+
+describe('locked marks', () => {
+  const now = 1000;
+  const helloF = parseFrame(JSON.stringify({ t: 'hello', id: 9, name: 'Lockie' }))! as StateFrame;
+  const base = applyFrame(undefined, 9, helloF, now)!.box;
+
+  it('hello seeds locked from the persisted snapshot', () => {
+    const r = applyFrame(undefined, 9, helloF, now, { locked: { 5: 1 } })!;
+    expect(r.box.locked).toEqual({ 5: 1 });
+  });
+  it('a same-character hello keeps its marks', () => {
+    const r = applyFrame({ ...base, locked: { 5: 1 } }, 9, helloF, now)!;
+    expect(r.box.locked).toEqual({ 5: 1 });
+  });
+  it('roe clears a mark whose id is now active, keeps the rest, and persists', () => {
+    const f = parseFrame('{"t":"roe","items":[{"id":5,"p":0}]}')! as StateFrame;
+    const r = applyFrame({ ...base, locked: { 5: 1, 6: 1 } }, 9, f, now)!;
+    expect(r.box.locked).toEqual({ 6: 1 });
+    expect(r.persist).toBe(true);
+  });
+  it('roedone clears a mark whose id is now completed', () => {
+    const f = parseFrame('{"t":"roedone","page":0,"ids":[6]}')! as StateFrame;
+    const r = applyFrame({ ...base, locked: { 5: 1, 6: 1 } }, 9, f, now)!;
+    expect(r.box.locked).toEqual({ 5: 1 });
+  });
+  it('keeps the same object when nothing was cleared', () => {
+    const locked = { 5: 1 };
+    const f = parseFrame('{"t":"roe","items":[{"id":7,"p":0}]}')! as StateFrame;
+    expect(applyFrame({ ...base, locked }, 9, f, now)!.box.locked).toBe(locked);
+  });
+});
+
+describe('sanitizeLocked', () => {
+  it('keeps integer ids 1..4095 with finite timestamps and drops the rest', () => {
+    expect(sanitizeLocked({ 5: 100, 0: 1, 4096: 1, abc: 1, 7: 'x', 8: Infinity })).toEqual({ 5: 100 });
+  });
+  it('returns undefined for non-objects', () => {
+    expect(sanitizeLocked(null)).toBeUndefined();
+    expect(sanitizeLocked([1, 2])).toBeUndefined();
+    expect(sanitizeLocked('x')).toBeUndefined();
   });
 });

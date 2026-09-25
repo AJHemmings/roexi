@@ -26,6 +26,8 @@ export type Box = {
   activeAt?: number;
   donePages?: Record<number, number[]>;
   doneAt?: number;
+  /** Refused ids → refusedAt (ms). Write `{}` to clear; undefined means "no change" to schedulePersist. */
+  locked?: Record<number, number>;
   lastSeen: number;
 };
 
@@ -40,6 +42,8 @@ export type PersistedChar = {
   activeAt?: number;
   donePages?: Record<number, number[]>;
   doneAt?: number;
+  /** Refused ids → refusedAt (ms). Write `{}` to clear; undefined means "no change" to schedulePersist. */
+  locked?: Record<number, number>;
   savedAt: number;
 };
 

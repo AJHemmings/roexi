@@ -74,7 +74,26 @@ export function parseFrame(line: string): Frame | null {
 }
 
 export type Applied = { box: Box; persist: boolean };
-export type Seed = Pick<PersistedChar, 'active' | 'activeAt' | 'donePages' | 'doneAt'> | undefined;
+export type Seed = Pick<PersistedChar, 'active' | 'activeAt' | 'donePages' | 'doneAt' | 'locked'> | undefined;
+
+/** Loader-side validation for persisted `locked` (files on disk are untrusted, like frames). */
+export function sanitizeLocked(v: unknown): Record<number, number> | undefined {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const out: Record<number, number> = {};
+  for (const [k, at] of Object.entries(v as Record<string, unknown>)) {
+    const id = Number(k);
+    if (Number.isInteger(id) && id >= 1 && id <= 4095 && isNum(at)) out[id] = at;
+  }
+  return out;
+}
+
+/** Self-correct (spec §2 rule 2): an id seen active or completed was clearly not locked. */
+function unlock(locked: Record<number, number> | undefined, ids: number[]): Record<number, number> | undefined {
+  if (!locked) return locked;
+  let next: Record<number, number> | undefined;
+  for (const id of ids) if (id in locked) { next ??= { ...locked }; delete next[id]; }
+  return next ?? locked;
+}
 
 /**
  * Fold one state frame into a connection's box.
@@ -96,13 +115,13 @@ export function applyFrame(prev: Box | undefined, conn: number, f: StateFrame, n
         sub: f.sub ?? carry?.sub, subLvl: f.sub_lvl ?? carry?.subLvl,
         zone: f.zone ?? carry?.zone, zoneName: f.zone_name ?? carry?.zoneName,
         server: f.server ?? carry?.server, av: f.av ?? carry?.av, apath: f.apath ?? carry?.apath,
-        active: base?.active, activeAt: base?.activeAt, donePages: base?.donePages, doneAt: base?.doneAt,
+        active: base?.active, activeAt: base?.activeAt, donePages: base?.donePages, doneAt: base?.doneAt, locked: base?.locked,
         lastSeen: now,
       },
     };
   }
   if (!prev) return null;
-  if (f.t === 'roe') return { persist: true, box: { ...prev, active: f.items, activeAt: now, lastSeen: now } };
-  if (f.t === 'roedone') return { persist: true, box: { ...prev, donePages: { ...(prev.donePages ?? {}), [f.page]: f.ids }, doneAt: now, lastSeen: now } };
+  if (f.t === 'roe') return { persist: true, box: { ...prev, active: f.items, activeAt: now, lastSeen: now, locked: unlock(prev.locked, f.items.map((i) => i.id)) } };
+  if (f.t === 'roedone') return { persist: true, box: { ...prev, donePages: { ...(prev.donePages ?? {}), [f.page]: f.ids }, doneAt: now, lastSeen: now, locked: unlock(prev.locked, f.ids) } };
   return null;
 }
