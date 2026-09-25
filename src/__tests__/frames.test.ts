@@ -147,6 +147,9 @@ describe('sanitizeLocked', () => {
   it('keeps integer ids 1..4095 with finite timestamps and drops the rest', () => {
     expect(sanitizeLocked({ 5: 100, 0: 1, 4096: 1, abc: 1, 7: 'x', 8: Infinity })).toEqual({ 5: 100 });
   });
+  it('drops non-positive timestamps', () => {
+    expect(sanitizeLocked({ 5: 0, 6: -1 })).toEqual({});
+  });
   it('returns undefined for non-objects', () => {
     expect(sanitizeLocked(null)).toBeUndefined();
     expect(sanitizeLocked([1, 2])).toBeUndefined();

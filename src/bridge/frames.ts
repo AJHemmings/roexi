@@ -82,7 +82,7 @@ export function sanitizeLocked(v: unknown): Record<number, number> | undefined {
   const out: Record<number, number> = {};
   for (const [k, at] of Object.entries(v as Record<string, unknown>)) {
     const id = Number(k);
-    if (Number.isInteger(id) && id >= 1 && id <= 4095 && isNum(at)) out[id] = at;
+    if (Number.isInteger(id) && id >= 1 && id <= 4095 && isNum(at) && at > 0) out[id] = at;
   }
   return out;
 }
