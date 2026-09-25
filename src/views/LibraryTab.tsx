@@ -41,8 +41,9 @@ function ExpandedLibrary({ id, entry, scope }: { id: number; entry?: CatalogEntr
         const active = c.active.find((a) => a.id === id);
         const done = doneState(c, id);
         const refusedAt = c.locked?.get(id);
-        const doneLabel = done === 'done' ? 'completed'
+        const doneLabel = done === 'done' && entry?.repeat === false ? 'completed'
           : refusedAt != null ? `locked? · refused ${relTime(refusedAt)}`
+          : done === 'done' ? 'completed'
           : done === 'unknown' ? 'completion unknown' : 'not completed';
         return (
           <div key={c.name} className="flex items-center gap-2">
