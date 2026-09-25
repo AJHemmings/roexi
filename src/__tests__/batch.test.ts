@@ -83,6 +83,34 @@ describe('runAdd', () => {
     await p;
     expect(getResults()[0].chars[0]).toMatchObject({ name: 'Delphine', status: 'no-response', added: [1], notAccepted: [] });
   });
+
+  it('marks refused ids as locked when the addon acked ok', async () => {
+    hello(41, 'Refusa');
+    vi.advanceTimersByTime(200);
+    setCommandSink((conn, line) => {
+      const msg = JSON.parse(line) as { seq?: number };
+      setTimeout(() => {
+        ingestLine(conn, JSON.stringify({ t: 'seqack', seq: msg.seq, ok: true }));
+        ingestLine(conn, JSON.stringify({ t: 'roe', items: [] })); // game ignored the add
+      }, 50);
+    });
+    const p = runAdd([known('Refusa')], [1], byId);
+    await vi.advanceTimersByTimeAsync(200);
+    await p;
+    vi.advanceTimersByTime(200);
+    expect(known('Refusa').locked?.has(1)).toBe(true);
+  });
+
+  it('does not mark anything when the addon never acked', async () => {
+    hello(42, 'Silent');
+    vi.advanceTimersByTime(200);
+    setCommandSink(() => {});
+    const p = runAdd([known('Silent')], [1], byId);
+    await vi.advanceTimersByTimeAsync(17_000);
+    await p;
+    vi.advanceTimersByTime(200);
+    expect(known('Silent').locked?.has(1) ?? false).toBe(false);
+  });
 });
 
 describe('runRemove', () => {
