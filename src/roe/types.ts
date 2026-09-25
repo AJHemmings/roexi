@@ -58,6 +58,8 @@ export type KnownChar = {
   doneIds: Set<number>;
   /** Page indices received; an id whose page (floor(id/1024)) is absent is UNKNOWN, not "not done". */
   donePagesKnown: Set<number>;
+  /** Objectives the game refused for this character: id → refusedAt (ms). "locked?" — evidence, not proof. */
+  locked?: Map<number, number>;
   savedAt?: number;
 };
 
