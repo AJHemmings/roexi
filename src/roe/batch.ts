@@ -51,7 +51,11 @@ async function runOneAdd(plan: AddPlan, targets: KnownChar[]): Promise<AddCharRe
   const { status, afterActiveIds } = await sendAndSettle(conn, 'roeadd', plan.send);
   const { landed, notAccepted } = diffAddResult(plan, afterActiveIds);
   // Spec §2 rule 1: only an acked batch is trustworthy evidence that the game said no.
-  if (status === 'ok') recordRefusals(conn, notAccepted, Date.now());
+  // Note: waitForRoeFrame can resolve on the 0x111 triggered by the *first* injection in a
+  // multi-id add, so the last ids may still show as "not accepted" here and get briefly marked
+  // locked; the next 0x111 clears them via applyFrame's self-correct (unlock). Don't "fix" this
+  // by removing that self-correct - it's what keeps a transient false mark from sticking.
+  if (status === 'ok') recordRefusals(conn, plan.name, notAccepted, Date.now());
   return { ...base, status, added: landed, notAccepted };
 }
 

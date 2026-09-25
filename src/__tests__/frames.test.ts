@@ -131,6 +131,16 @@ describe('locked marks', () => {
     const f = parseFrame('{"t":"roe","items":[{"id":7,"p":0}]}')! as StateFrame;
     expect(applyFrame({ ...base, locked }, 9, f, now)!.box.locked).toBe(locked);
   });
+  it('a different-id hello (character swap) takes the seed, not the old box, and uses the seed\'s locked', () => {
+    const swapHello = parseFrame(JSON.stringify({ t: 'hello', id: 10, name: 'Other' }))! as StateFrame;
+    const r = applyFrame({ ...base, locked: { 5: 1 } }, 9, swapHello, now, { locked: { 7: 2 } })!;
+    expect(r.box.locked).toEqual({ 7: 2 });
+  });
+  it('a different-id hello with no seed has no locked marks', () => {
+    const swapHello = parseFrame(JSON.stringify({ t: 'hello', id: 10, name: 'Other' }))! as StateFrame;
+    const r = applyFrame({ ...base, locked: { 5: 1 } }, 9, swapHello, now)!;
+    expect(r.box.locked).toBeUndefined();
+  });
 });
 
 describe('sanitizeLocked', () => {

@@ -122,6 +122,8 @@ export function applyFrame(prev: Box | undefined, conn: number, f: StateFrame, n
   }
   if (!prev) return null;
   if (f.t === 'roe') return { persist: true, box: { ...prev, active: f.items, activeAt: now, lastSeen: now, locked: unlock(prev.locked, f.items.map((i) => i.id)) } };
+  // Any completion bit clears the mark, including a repeatable completed just once: if it was ever
+  // completed it was clearly not locked, even though a repeatable can cycle back to open afterwards.
   if (f.t === 'roedone') return { persist: true, box: { ...prev, donePages: { ...(prev.donePages ?? {}), [f.page]: f.ids }, doneAt: now, lastSeen: now, locked: unlock(prev.locked, f.ids) } };
   return null;
 }

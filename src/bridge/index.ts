@@ -196,10 +196,13 @@ export function seedPersisted(pc: PersistedChar) { persisted.set(pc.name, pc); s
 
 // ── locked marks (spec §3) ───────────────────────────────────────────────────
 /** Mark ids the game refused for this connection's character. Ids active right now are skipped:
- * they clearly landed (a late 0x111), so marking them would be wrong. */
-export function recordRefusals(conn: number, ids: number[], at: number): void {
+ * they clearly landed (a late 0x111), so marking them would be wrong. `name` guards against a
+ * shared-client swap: a batch can be in flight for up to ~16.5s, long enough for a different
+ * character to hello on the same conn (without a dropConn) before this resolves; without the
+ * check the old batch's ack would mark the new character's ids instead. */
+export function recordRefusals(conn: number, name: string, ids: number[], at: number): void {
   const b = byConn.get(conn);
-  if (!b) return;
+  if (!b || b.name !== name) return;
   const activeNow = new Set((b.active ?? []).map((a) => a.id));
   const fresh = ids.filter((id) => !activeNow.has(id));
   if (fresh.length === 0) return;
@@ -208,7 +211,7 @@ export function recordRefusals(conn: number, ids: number[], at: number): void {
   const box = { ...b, locked };
   byConn.set(conn, box);
   schedulePersist(persistOf(box));
-  rebuild();
+  rebuild(); // not scheduleRebuild(): deliberate, so the UI updates right after this click/batch, not 150ms later
 }
 
 /** "Forget locked marks": online or offline. Writes `{}` (not undefined) so the merge in schedulePersist clears it. */

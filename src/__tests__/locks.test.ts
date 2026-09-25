@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { objectiveState, isRemaining, showInRemaining, summarize } from '../roe/locks';
+import { objectiveState, isRemaining, showInRemaining, summarize, type ObjState } from '../roe/locks';
 import type { KnownChar, CatalogEntry } from '../roe/types';
 
 const char = (name: string, over: Partial<KnownChar> = {}): KnownChar => ({
@@ -31,8 +31,8 @@ describe('objectiveState', () => {
 
 describe('isRemaining / showInRemaining', () => {
   it('only open and unknown remain', () => {
-    expect(['open', 'unknown'].every((s) => isRemaining(s as never))).toBe(true);
-    expect(['auto', 'active', 'done', 'locked'].some((s) => isRemaining(s as never))).toBe(false);
+    expect((['open', 'unknown'] as ObjState[]).every((s) => isRemaining(s))).toBe(true);
+    expect((['auto', 'active', 'done', 'locked'] as ObjState[]).some((s) => isRemaining(s))).toBe(false);
   });
   it('single scope: hidden when that character has it done', () => {
     expect(showInRemaining([char('A', { doneIds: new Set([1]) })], 1, byId)).toBe(false);
