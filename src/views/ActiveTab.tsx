@@ -8,6 +8,7 @@ import { Spinner } from '../components/Spinner';
 import { usePending, isCharBusy, isIdPending, pendingFor } from '../roe/pending';
 import { TargetPickerModal } from '../components/TargetPicker';
 import { ActiveCountHeader } from '../components/ActiveCountHeader';
+import { relTime } from '../reltime';
 import { MAX_ACTIVE } from '../roe/types';
 import type { KnownChar, CatalogEntry } from '../roe/types';
 
@@ -45,7 +46,8 @@ function ExpandedActive({ id, scope, entry, byId }: { id: number; scope: KnownCh
         return (
           <div key={c.name} className="flex items-center gap-2 text-[11px] text-fg-3">
             <span className="font-semibold">{c.name}</span>
-            <span className="text-fg-4">{reason ? ADD_BLOCK_LABEL[reason] : 'not active'}</span>
+            <span className="text-fg-4">{reason ? ADD_BLOCK_LABEL[reason]
+              : c.locked?.has(id) ? `locked? · refused ${relTime(c.locked.get(id))}` : 'not active'}</span>
             <button disabled={reason !== null || busy} onClick={() => void runAdd([c], [id], byId)}
               className="le-tap inline-flex items-center gap-1 text-accent/90 hover:text-accent font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-accent/90">
               {spinning === 'add' ? <><Spinner />Adding…</> : 'Add'}
