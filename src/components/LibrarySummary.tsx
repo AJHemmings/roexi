@@ -1,5 +1,5 @@
 // Per-character done/open/locked counts above the Library list. Spec §4.2.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { summarize, type Summary } from '../roe/locks';
 import { clearLocks } from '../bridge';
 import { HelpTip } from '../ui';
@@ -14,6 +14,7 @@ const breakdown = (s: Summary) =>
 
 function Single({ c, s }: { c: KnownChar; s: Summary }) {
   const [armed, setArmed] = useState(false);
+  useEffect(() => { if (s.locked === 0) setArmed(false); }, [s.locked]);
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-fg-3">
       <span className="font-semibold text-fg-2">{c.name}</span>
@@ -35,7 +36,7 @@ function Single({ c, s }: { c: KnownChar; s: Summary }) {
 export function LibrarySummary({ scope, catalog }: { scope: KnownChar[]; catalog: Catalog }) {
   const rows = useMemo(() => scope.map((c) => ({ c, s: summarize(c, catalog.entries, catalog.byId) })), [scope, catalog]);
   if (rows.length === 0) return null;
-  if (rows.length === 1) return <div className="mb-2 px-1"><Single c={rows[0].c} s={rows[0].s} /></div>;
+  if (rows.length === 1) return <div className="mb-2 px-1"><Single key={rows[0].c.name} c={rows[0].c} s={rows[0].s} /></div>;
   return (
     <div className="mb-2 px-1 flex flex-wrap gap-1.5">
       {rows.map(({ c, s }) => (
