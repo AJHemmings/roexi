@@ -136,10 +136,52 @@ describe('runRemove', () => {
     ingestLine(5, JSON.stringify({ t: 'roe', items: [{ id: 1, p: 0 }] }));
     vi.advanceTimersByTime(200);
     fakeAddon(new Map([[5, new Set([1])]]));
-    const p = runRemove([known('Evander')], [1]);
+    const p = runRemove([known('Evander')], [1], byId);
     await vi.advanceTimersByTimeAsync(200);
     await p;
     expect(getResults()[0].chars[0]).toMatchObject({ name: 'Evander', status: 'ok', removed: [1], notRemoved: [] });
+  });
+
+  it('tells that connection what was removed', async () => {
+    hello(12, 'Mireille');
+    ingestLine(12, JSON.stringify({ t: 'roe', items: [{ id: 1, p: 0 }] }));
+    vi.advanceTimersByTime(200);
+    const sent: string[] = [];
+    const active = new Map([[12, new Set([1])]]);
+    setCommandSink((conn, line) => {
+      sent.push(line);
+      const msg = JSON.parse(line) as { cmd: string; ids?: number[]; seq?: number };
+      const set = active.get(conn) ?? new Set<number>();
+      active.set(conn, set);
+      if (msg.cmd === 'roecancel') for (const id of msg.ids ?? []) set.delete(id);
+      setTimeout(() => {
+        if (msg.seq != null) ingestLine(conn, JSON.stringify({ t: 'seqack', seq: msg.seq, ok: true }));
+        ingestLine(conn, JSON.stringify({ t: 'roe', items: [...set].map((id) => ({ id, p: 0 })) }));
+      }, 50);
+    });
+    const p = runRemove([known('Mireille')], [1], byId);
+    await vi.advanceTimersByTimeAsync(200);
+    await p;
+    const notice = sent.map((l) => JSON.parse(l)).find((m) => m.cmd === 'notice');
+    expect(notice).toEqual({ cmd: 'notice', msg: 'removed: Obj 1' });
+  });
+
+  it('sends no notice when nothing was removed', async () => {
+    hello(13, 'Norah');
+    vi.advanceTimersByTime(200);
+    const sent: string[] = [];
+    setCommandSink((conn, line) => {
+      sent.push(line);
+      const msg = JSON.parse(line) as { cmd: string; seq?: number };
+      setTimeout(() => {
+        if (msg.seq != null) ingestLine(conn, JSON.stringify({ t: 'seqack', seq: msg.seq, ok: true }));
+        ingestLine(conn, JSON.stringify({ t: 'roe', items: [] }));
+      }, 50);
+    });
+    const p = runRemove([known('Norah')], [1], byId);
+    await vi.advanceTimersByTimeAsync(200);
+    await p;
+    expect(sent.some((line) => JSON.parse(line).cmd === 'notice')).toBe(false);
   });
 });
 
@@ -162,7 +204,7 @@ describe('in-flight lock', () => {
     ingestLine(7, JSON.stringify({ t: 'roe', items: [{ id: 1, p: 0 }] }));
     vi.advanceTimersByTime(200);
     fakeAddon(new Map([[7, new Set([1])]]));
-    const p = runRemove([known('Helena')], [1]);
+    const p = runRemove([known('Helena')], [1], byId);
     expect(pendingFor(getPending(), 'Helena', 1)).toBe('remove');
     await vi.advanceTimersByTimeAsync(200);
     await p;
@@ -199,7 +241,7 @@ describe('in-flight lock', () => {
     const held = beginPending('add', ['Kael'], [1]);
     try {
       await runAdd([known('Kael'), known('Lysa')], [1], byId);
-      await runRemove([known('Kael')], [1]);
+      await runRemove([known('Kael')], [1], byId);
       expect(sent).toBe(0);
       expect(warn).toHaveBeenCalledTimes(2);
       expect(isCharBusy(getPending(), 'Lysa')).toBe(false); // not left locked by the refused batch

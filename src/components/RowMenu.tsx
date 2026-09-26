@@ -42,10 +42,10 @@ export function RowMenu({ id, known, charSelected, selectedIds, byId, onOpenRemo
 
   const items: DropdownItem[] = [];
   if (charSelected !== null) {
-    items.push({ key: 'this', label: 'Remove from this character', disabled: !canRemoveThisChar || (!!theChar && isCharBusy(pending, theChar.name)), onClick: () => { if (theChar) void runRemove([theChar], [id]); } });
+    items.push({ key: 'this', label: 'Remove from this character', disabled: !canRemoveThisChar || (!!theChar && isCharBusy(pending, theChar.name)), onClick: () => { if (theChar) void runRemove([theChar], [id], byId); } });
   }
   items.push({ key: 'multi', label: 'Remove from multiple', disabled: !canRemoveAll, onClick: onOpenRemovePicker });
-  items.push({ key: 'all', label: 'Remove from all', disabled: !canRemoveAll || anyBusy(pending, removeNames), onClick: () => void runRemove(removeTargets, [id]) });
+  items.push({ key: 'all', label: 'Remove from all', disabled: !canRemoveAll || anyBusy(pending, removeNames), onClick: () => void runRemove(removeTargets, [id], byId) });
   items.push({ key: 'add-multi', label: 'Add to multiple', separatorBefore: true, disabled: !canAdd, onClick: onOpenAddPicker });
   items.push({ key: 'add-all', label: 'Add to all', disabled: !canAdd || anyBusy(pending, addTargets.map((c) => c.name)), onClick: () => void runAdd(addTargets, [id], byId) });
   if (selectedIds.length > 0) {

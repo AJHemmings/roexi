@@ -35,7 +35,7 @@ function ExpandedActive({ id, scope, entry, byId }: { id: number; scope: KnownCh
             <div key={c.name} className="flex items-center gap-2 text-[11px] text-fg-3">
               <span className="font-semibold">{c.name}</span>
               <ProgressBar p={act.p} online={c.online} entry={entry} />
-              <button disabled={busy} onClick={() => void runRemove([c], [id])}
+              <button disabled={busy} onClick={() => void runRemove([c], [id], byId)}
                 className="le-tap inline-flex items-center gap-1 text-red-300/80 hover:text-red-300 font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-red-300/80">
                 {spinning === 'remove' ? <><Spinner />Removing…</> : 'Remove'}
               </button>
@@ -115,7 +115,7 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
         {rowRemoveId != null && (
           <TargetPickerModal known={known} defaultSelected={computeRemoveDefault(known, [rowRemoveId])}
             confirmLabel="Remove" onClose={() => setRowRemoveId(null)}
-            onConfirm={(targets) => void runRemove(resolveTargets(known, targets), [rowRemoveId])} />
+            onConfirm={(targets) => void runRemove(resolveTargets(known, targets), [rowRemoveId], byId)} />
         )}
         {rowAddId != null && (
           <TargetPickerModal known={known} defaultSelected={computeAddDefault(known, [rowAddId], byId)}

@@ -66,7 +66,7 @@ export default function RecordsView() {
       </div>
       <ActionBar known={scope} selectedIds={selected} byId={catalog.byId} showRemove={tab === 'active'}
         onAdd={(targets) => { void runAdd(resolveTargets(scope, targets), selected, catalog.byId); clear(); }}
-        onRemove={(targets) => { void runRemove(resolveTargets(scope, targets), selected); clear(); }}
+        onRemove={(targets) => { void runRemove(resolveTargets(scope, targets), selected, catalog.byId); clear(); }}
         onClear={clear} />
     </div>
   );

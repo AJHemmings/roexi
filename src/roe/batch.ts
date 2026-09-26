@@ -3,6 +3,7 @@ import { nextSeq, sendBoxCommand, awaitSeqAck, waitForRoeFrame, getBoxActiveIds,
 import { buildAddPlan, buildRemovePlan, type AddPlan, type RemovePlan } from './plan';
 import { diffAddResult, diffRemoveResult } from './diff';
 import { pushAddResult, pushRemoveResult, type AckStatus, type AddCharResult, type RemoveCharResult } from './results';
+import { removedNoticeText } from './chatText';
 import type { KnownChar, CatalogEntry } from './types';
 import { beginPending, endPending, getPending, anyBusy } from './pending';
 
@@ -59,20 +60,20 @@ async function runOneAdd(plan: AddPlan, targets: KnownChar[]): Promise<AddCharRe
   return { ...base, status, added: landed, notAccepted };
 }
 
-export async function runRemove(targets: KnownChar[], ids: number[]): Promise<void> {
+export async function runRemove(targets: KnownChar[], ids: number[], byId: Map<number, CatalogEntry>): Promise<void> {
   const names = targets.map((t) => t.name);
   if (anyBusy(getPending(), names)) { console.warn('runRemove refused: a target already has a batch in flight', names); return; }
   const key = beginPending('remove', names, ids);
   try {
     const plans = buildRemovePlan(targets, ids);
-    const chars = await Promise.all(plans.map((plan) => runOneRemove(plan, targets)));
+    const chars = await Promise.all(plans.map((plan) => runOneRemove(plan, targets, byId)));
     pushRemoveResult(chars);
   } finally {
     endPending(key);
   }
 }
 
-async function runOneRemove(plan: RemovePlan, targets: KnownChar[]): Promise<RemoveCharResult> {
+async function runOneRemove(plan: RemovePlan, targets: KnownChar[], byId: Map<number, CatalogEntry>): Promise<RemoveCharResult> {
   const base = { name: plan.name, skipNotActive: plan.skipNotActive };
   if (plan.status !== 'ok' || plan.send.length === 0) {
     return { ...base, status: plan.status, removed: [], notRemoved: [] };
@@ -80,5 +81,9 @@ async function runOneRemove(plan: RemovePlan, targets: KnownChar[]): Promise<Rem
   const conn = targets.find((t) => t.name === plan.name)!.conn!;
   const { status, afterActiveIds } = await sendAndSettle(conn, 'roecancel', plan.send);
   const { removed, notRemoved } = diffRemoveResult(plan, afterActiveIds);
+  if (removed.length > 0) {
+    const msg = removedNoticeText(removed.map((id) => byId.get(id)?.n ?? `#${id}`));
+    if (msg) sendBoxCommand(conn, JSON.stringify({ cmd: 'notice', msg }));
+  }
   return { ...base, status, removed, notRemoved };
 }
