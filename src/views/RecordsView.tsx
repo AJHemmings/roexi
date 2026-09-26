@@ -50,7 +50,7 @@ export default function RecordsView() {
           {tab === 'library' && (
             <div className="flex items-center gap-1.5 shrink-0">
               <Chip on={remaining} onChange={setRemaining}>Remaining</Chip>
-              <HelpTip text="Remaining: only show objectives this character could still add. Hides ones that are completed, already active, or that the game refused (locked?). In All mode, shows anything at least one character could still add." />
+              <HelpTip align="end" text="Remaining: only show objectives this character could still add. Hides ones that are completed, already active, or that the game refused (locked?). In All mode, shows anything at least one character could still add." />
             </div>
           )}
         </div>
