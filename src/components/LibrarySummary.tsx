@@ -61,7 +61,7 @@ function ScopeChip({ c, s, onOpen }: { c: KnownChar; s: Summary; onOpen: () => v
   const id = useId();
   return (
     <button type="button" aria-describedby={id} onClick={onOpen} className="group relative px-2 py-0.5 rounded-md bg-field border border-line text-[11px] text-fg-3 outline-none hover:border-accent/50 transition-colors">
-      <span className="font-semibold text-fg-2">{c.name}</span> {s.open} open
+      <span className="font-semibold text-fg-2">{c.name}</span>
       <span id={id} role="tooltip" className="pointer-events-none absolute z-50 left-0 top-full mt-1.5 whitespace-nowrap rounded-md bg-surface-raised border border-line px-2 py-1 text-[11px] font-semibold text-fg-2 shadow-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus:opacity-100">{breakdown(s)}</span>
     </button>
   );
