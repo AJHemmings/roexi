@@ -1,6 +1,6 @@
 _addon.name = 'roexi'
 _addon.author = 'Mak'
-_addon.version = '0.2.2-beta'
+_addon.version = '0.3.0-beta'
 _addon.commands = {'roexi'}
 
 local socket = require('socket')
@@ -42,13 +42,15 @@ local function queue_send(data)
     if data and #txbuf + #data <= TXBUF_MAX then txbuf = txbuf .. data end
 end
 
-local function disconnect()
+local function disconnect(lost)
+    local was = connected
     if conn then pcall(function() conn:close() end) end
     conn, connected = nil, false
     rx, txbuf = '', ''
     act_queue = {}
     if conn_pending then pcall(function() conn_pending:close() end) conn_pending = nil end
     retry_delay = RETRY_INTERVAL
+    if lost and was then chat('lost connection to roexi - retrying') end
 end
 
 ----------------------------------------------------------------------
@@ -199,6 +201,16 @@ local function dispatch(line)
         pcall(request_log)
     elseif msg.cmd == 'sync' then
         send_snapshot('self')
+    elseif msg.cmd == 'notice' then
+        -- Printed as-is from the app (e.g. "update available ...", "removed: ..."). Game chat is
+        -- not UTF-8: keep printable ASCII only. The app only sends each notice once per connection,
+        -- so no de-dupe here — a second identical notice (e.g. another "removed: X") must still print.
+        if type(msg.msg) == 'string' then
+            local text = (msg.msg:gsub('[^\32-\126]', '')):sub(1, 200)
+            if text ~= '' then
+                chat(text)
+            end
+        end
     elseif msg.cmd == 'reload' then
         -- Sent by the app right after it installs an addon update, so the new files load without
         -- typing //lua reload in every client.
@@ -215,7 +227,7 @@ local function finish_connect(s)
     retry_delay = RETRY_INTERVAL
     reread_cached()
     send_snapshot('hello')
-    chat('connected to roexi on port ' .. PORT)
+    chat('connected to roexi (addon v' .. _addon.version .. ')')
 end
 
 local function bump_backoff()
@@ -309,7 +321,7 @@ local function tick()
         if #rx > TXBUF_MAX then rx = '' end
     end
     if err == 'closed' then
-        disconnect()
+        disconnect(true)
         return
     end
 
@@ -328,14 +340,14 @@ local function tick()
 
     if #txbuf >= TXBUF_MAX then
         chat('app not responding; resetting connection')
-        disconnect()
+        disconnect(true)
         return
     end
     if #txbuf > 0 then
         local sent, serr, last = conn:send(txbuf)
         local n = sent or last
         if n and n > 0 then txbuf = txbuf:sub(n + 1) end
-        if serr == 'closed' then disconnect() return end
+        if serr == 'closed' then disconnect(true) return end
     end
 end
 
@@ -377,6 +389,7 @@ end)
 
 windower.register_event('load', function()
     last_player_id = nil   -- prerender sees the player next frame and reads the cached packets
+    chat('v' .. _addon.version .. ' loaded - looking for the roexi app on port ' .. PORT)
     if not json_ok then chat('dkjson failed to load; commands from the app will be ignored') end
 end)
 

@@ -26,6 +26,8 @@ export type Box = {
   activeAt?: number;
   donePages?: Record<number, number[]>;
   doneAt?: number;
+  /** Refused ids → refusedAt (ms). Write `{}` to clear; undefined means "no change" to schedulePersist. */
+  locked?: Record<number, number>;
   lastSeen: number;
 };
 
@@ -40,6 +42,8 @@ export type PersistedChar = {
   activeAt?: number;
   donePages?: Record<number, number[]>;
   doneAt?: number;
+  /** Refused ids → refusedAt (ms). Write `{}` to clear; undefined means "no change" to schedulePersist. */
+  locked?: Record<number, number>;
   savedAt: number;
 };
 
@@ -58,6 +62,8 @@ export type KnownChar = {
   doneIds: Set<number>;
   /** Page indices received; an id whose page (floor(id/1024)) is absent is UNKNOWN, not "not done". */
   donePagesKnown: Set<number>;
+  /** Objectives the game refused for this character: id → refusedAt (ms). "locked?" — evidence, not proof. */
+  locked?: Map<number, number>;
   savedAt?: number;
 };
 

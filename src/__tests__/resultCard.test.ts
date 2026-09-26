@@ -36,7 +36,7 @@ describe('addLine', () => {
 
   it('joins multiple non-empty fields with middot separators, using catalog names', () => {
     const line = addLine(add({ added: [1], notAccepted: [2], skipActive: [3] }), byId);
-    expect(line).toBe('Aldric: added Sortie A · not accepted: Sortie B · already active: Sortie C');
+    expect(line).toBe('Aldric: added Sortie A · refused (probably locked): Sortie B · already active: Sortie C');
   });
 
   it('falls back to "nothing to do" when every list is empty', () => {

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { checkForUpdate, installUpdate, checkAddonUpdate, installAddonUpdate, type Update, type ManifestAddon } from './updater';
-import { useAddonInfo } from './bridge';
+import { useAddonInfo, useBoxes } from './bridge';
 import { reloadAddonInGame, reloadSummary, type ReloadResult } from './addonReload';
+import { sendUpdateNotices, updateNoticeText } from './updateNotice';
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -22,6 +23,7 @@ export function setStartupCheck(on: boolean): void {
 
 export default function UpdateBanner() {
   const addon = useAddonInfo();
+  const boxes = useBoxes();
   const [app, setApp] = useState<Update | null>(null);
   const [addonManifest, setAddonManifest] = useState<ManifestAddon | null>(null);
   const [installing, setInstalling] = useState<'app' | 'addon' | null>(null);
@@ -56,6 +58,16 @@ export default function UpdateBanner() {
     })();
     return () => { cancelled = true; };
   }, [addon?.dir, addon?.version]);
+
+  // Players often log in without looking at the app: repeat what the banner shows in each game's chat.
+  // `app`/`addonManifest` are already null when the check is off, in dev, or the version was skipped.
+  useEffect(() => {
+    if (installing !== null || updatingAll) return;
+    sendUpdateNotices(boxes.map((b) => ({
+      conn: b.conn,
+      text: updateNoticeText(app?.version ?? null, addonManifest && b.av !== addonManifest.version ? addonManifest.version : null),
+    })));
+  }, [boxes, app, addonManifest, installing, updatingAll]);
 
   const installApp = async () => {
     if (!app) return;

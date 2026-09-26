@@ -10,7 +10,7 @@ export function addLine(c: AddCharResult, byId: Map<number, CatalogEntry>): stri
   if (c.status === 'addon-error') return `${c.name}: addon error`;
   const parts: string[] = [];
   if (c.added.length) parts.push(`added ${c.added.map((id) => nameFor(byId, id)).join(', ')}`);
-  if (c.notAccepted.length) parts.push(`not accepted: ${c.notAccepted.map((id) => nameFor(byId, id)).join(', ')}`);
+  if (c.notAccepted.length) parts.push(`refused (probably locked): ${c.notAccepted.map((id) => nameFor(byId, id)).join(', ')}`);
   if (c.skipActive.length) parts.push(`already active: ${c.skipActive.map((id) => nameFor(byId, id)).join(', ')}`);
   if (c.skipDone.length) parts.push(`already completed: ${c.skipDone.map((id) => nameFor(byId, id)).join(', ')}`);
   if (c.skipAuto.length) parts.push(`daily (can't add): ${c.skipAuto.map((id) => nameFor(byId, id)).join(', ')}`);

@@ -1,8 +1,9 @@
 // Turns a plan into real addon commands and a result card. Spec §8.6.
-import { nextSeq, sendBoxCommand, awaitSeqAck, waitForRoeFrame, getBoxActiveIds, type SeqAck } from '../bridge';
+import { nextSeq, sendBoxCommand, awaitSeqAck, waitForRoeFrame, getBoxActiveIds, recordRefusals, type SeqAck } from '../bridge';
 import { buildAddPlan, buildRemovePlan, type AddPlan, type RemovePlan } from './plan';
 import { diffAddResult, diffRemoveResult } from './diff';
 import { pushAddResult, pushRemoveResult, type AckStatus, type AddCharResult, type RemoveCharResult } from './results';
+import { removedNoticeText } from './chatText';
 import type { KnownChar, CatalogEntry } from './types';
 import { beginPending, endPending, getPending, anyBusy } from './pending';
 
@@ -50,23 +51,29 @@ async function runOneAdd(plan: AddPlan, targets: KnownChar[]): Promise<AddCharRe
   const conn = targets.find((t) => t.name === plan.name)!.conn!;
   const { status, afterActiveIds } = await sendAndSettle(conn, 'roeadd', plan.send);
   const { landed, notAccepted } = diffAddResult(plan, afterActiveIds);
+  // Spec §2 rule 1: only an acked batch is trustworthy evidence that the game said no.
+  // Note: waitForRoeFrame can resolve on the 0x111 triggered by the *first* injection in a
+  // multi-id add, so the last ids may still show as "not accepted" here and get briefly marked
+  // locked; the next 0x111 clears them via applyFrame's self-correct (unlock). Don't "fix" this
+  // by removing that self-correct - it's what keeps a transient false mark from sticking.
+  if (status === 'ok') recordRefusals(conn, plan.name, notAccepted, Date.now());
   return { ...base, status, added: landed, notAccepted };
 }
 
-export async function runRemove(targets: KnownChar[], ids: number[]): Promise<void> {
+export async function runRemove(targets: KnownChar[], ids: number[], byId: Map<number, CatalogEntry>): Promise<void> {
   const names = targets.map((t) => t.name);
   if (anyBusy(getPending(), names)) { console.warn('runRemove refused: a target already has a batch in flight', names); return; }
   const key = beginPending('remove', names, ids);
   try {
     const plans = buildRemovePlan(targets, ids);
-    const chars = await Promise.all(plans.map((plan) => runOneRemove(plan, targets)));
+    const chars = await Promise.all(plans.map((plan) => runOneRemove(plan, targets, byId)));
     pushRemoveResult(chars);
   } finally {
     endPending(key);
   }
 }
 
-async function runOneRemove(plan: RemovePlan, targets: KnownChar[]): Promise<RemoveCharResult> {
+async function runOneRemove(plan: RemovePlan, targets: KnownChar[], byId: Map<number, CatalogEntry>): Promise<RemoveCharResult> {
   const base = { name: plan.name, skipNotActive: plan.skipNotActive };
   if (plan.status !== 'ok' || plan.send.length === 0) {
     return { ...base, status: plan.status, removed: [], notRemoved: [] };
@@ -74,5 +81,9 @@ async function runOneRemove(plan: RemovePlan, targets: KnownChar[]): Promise<Rem
   const conn = targets.find((t) => t.name === plan.name)!.conn!;
   const { status, afterActiveIds } = await sendAndSettle(conn, 'roecancel', plan.send);
   const { removed, notRemoved } = diffRemoveResult(plan, afterActiveIds);
+  if (removed.length > 0) {
+    const msg = removedNoticeText(removed.map((id) => byId.get(id)?.n ?? `#${id}`));
+    if (msg) sendBoxCommand(conn, JSON.stringify({ cmd: 'notice', msg }));
+  }
   return { ...base, status, removed, notRemoved };
 }

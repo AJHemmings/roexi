@@ -88,7 +88,7 @@ export default function SetsView() {
         return (
           <TargetPickerModal known={known} defaultSelected={computeRemoveDefault(known, s.ids)} confirmLabel="Remove"
             onClose={() => setRemoveId(null)}
-            onConfirm={(targets) => track(s.id, 'remove', runRemove(resolveTargets(known, targets), s.ids))} />
+            onConfirm={(targets) => track(s.id, 'remove', runRemove(resolveTargets(known, targets), s.ids, catalog.byId))} />
         );
       })()}
       {editId && <EditSetModal set={sets.find((x) => x.id === editId)!} byId={catalog.byId} onClose={() => setEditId(null)} />}

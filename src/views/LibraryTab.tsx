@@ -3,8 +3,11 @@ import { useSticky } from '../sticky';
 import { Collapse } from '../overlay';
 import { ObjectiveRow } from '../components/ObjectiveRow';
 import { CharChips } from '../components/CharChips';
+import { LibrarySummary } from '../components/LibrarySummary';
 import { doneState } from '../roe/bitmap';
 import { formatProgress } from '../roe/format';
+import { showInRemaining } from '../roe/locks';
+import { relTime } from '../reltime';
 import type { Catalog } from '../roe/catalog';
 import type { KnownChar, CatalogEntry } from '../roe/types';
 
@@ -37,7 +40,11 @@ function ExpandedLibrary({ id, entry, scope }: { id: number; entry?: CatalogEntr
       {scope.map((c) => {
         const active = c.active.find((a) => a.id === id);
         const done = doneState(c, id);
-        const doneLabel = done === 'unknown' ? 'completion unknown' : done === 'done' ? 'completed' : 'not completed';
+        const refusedAt = c.locked?.get(id);
+        const doneLabel = done === 'done' && entry?.repeat === false ? 'completed'
+          : refusedAt != null ? `locked? · refused ${relTime(refusedAt)}`
+          : done === 'done' ? 'completed'
+          : done === 'unknown' ? 'completion unknown' : 'not completed';
         return (
           <div key={c.name} className="flex items-center gap-2">
             <span className="font-semibold shrink-0">{c.name}</span>
@@ -50,24 +57,27 @@ function ExpandedLibrary({ id, entry, scope }: { id: number; entry?: CatalogEntr
   );
 }
 
-export default function LibraryTab({ catalog, scope, query, selected, onToggle }: {
+export default function LibraryTab({ catalog, scope, query, selected, onToggle, remaining }: {
   catalog: Catalog;
   scope: KnownChar[];
   query: string;
   selected: number[];
   onToggle: (id: number) => void;
+  remaining: boolean;
 }) {
   const [openGroups, setOpenGroups] = useSticky<Record<string, boolean>>('records.library.groups', {});
   const q = query.trim();
   const matchIds = useMemo(() => new Set(catalog.search(q).map((e) => e.id)), [catalog, q]);
+  const visible = (id: number) => (!q || matchIds.has(id)) && (!remaining || showInRemaining(scope, id, catalog.byId));
 
   const toggleGroup = (key: string) => setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
   return (
     <div className="flex flex-col gap-3">
+      <LibrarySummary scope={scope} catalog={catalog} />
       {catalog.tree.map((cat) => {
         const catIds = [...cat.subs.values()].flat();
-        const catMatches = q ? catIds.filter((id) => matchIds.has(id)) : catIds;
+        const catMatches = catIds.filter(visible);
         if (catMatches.length === 0) return null;
         const catKey = cat.name;
         const catOpen = q ? true : (openGroups[catKey] ?? false);
@@ -77,7 +87,7 @@ export default function LibraryTab({ catalog, scope, query, selected, onToggle }
             <Collapse open={catOpen}>
               <div className="divide-y divide-line border-t border-line">
                 {[...cat.subs.entries()].map(([subName, ids]) => {
-                  const subMatches = ids.filter((id) => !q || matchIds.has(id)).sort((a, b) => (catalog.byId.get(a)?.n ?? '').localeCompare(catalog.byId.get(b)?.n ?? ''));
+                  const subMatches = ids.filter(visible).sort((a, b) => (catalog.byId.get(a)?.n ?? '').localeCompare(catalog.byId.get(b)?.n ?? ''));
                   if (subMatches.length === 0) return null;
                   const subKey = `${catKey}::${subName}`;
                   const subOpen = q ? true : (openGroups[subKey] ?? false);

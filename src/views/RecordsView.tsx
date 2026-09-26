@@ -6,7 +6,8 @@ import { resolveTargets } from '../roe/targets';
 import { useCharScope, CharScopeSelect } from '../components/CharScope';
 import { ActionBar } from '../components/ActionBar';
 import { ResultCards } from '../components/ResultCard';
-import { SearchInput, SectionTabs } from '../ui';
+import { SearchInput, SectionTabs, Chip, HelpTip } from '../ui';
+import { useSticky } from '../sticky';
 import ActiveTab from './ActiveTab';
 import LibraryTab from './LibraryTab';
 
@@ -19,6 +20,7 @@ export default function RecordsView() {
   const [query, setQuery] = useState('');
   const [activeSel, setActiveSel] = useState<number[]>([]);
   const [librarySel, setLibrarySel] = useState<number[]>([]);
+  const [remaining, setRemaining] = useSticky<boolean>('records.library.remaining', false);
 
   const selected = tab === 'active' ? activeSel : librarySel;
   const setSelected = tab === 'active' ? setActiveSel : setLibrarySel;
@@ -45,6 +47,12 @@ export default function RecordsView() {
         <div className="flex items-center gap-2">
           <SearchInput value={query} onChange={setQuery} placeholder="Filter objectives…"
             className="bg-field border border-line rounded-md px-3 py-1.5 text-xs text-fg-2 placeholder-fg-4 outline-none focus:border-accent/50 transition-colors" />
+          {tab === 'library' && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Chip on={remaining} onChange={setRemaining}>Remaining</Chip>
+              <HelpTip align="end" text="Remaining: only show objectives this character could still add. Hides ones that are completed, already active, or that the game refused (locked?). In All mode, shows anything at least one character could still add." />
+            </div>
+          )}
         </div>
         <CharScopeSelect known={known} charSelected={charSelected} setCharSelected={setCharSelected} />
         <SectionTabs value={tab} onChange={setTab} tabs={[{ id: 'active', label: 'Active' }, { id: 'library', label: 'Library' }]} />
@@ -54,11 +62,11 @@ export default function RecordsView() {
         {tab === 'active'
           ? <ActiveTab known={known} scope={scope} charSelected={charSelected} byId={catalog.byId} query={query}
               selected={activeSel} onToggle={toggle} clearSelected={() => setActiveSel([])} />
-          : <LibraryTab catalog={catalog} scope={scope} query={query} selected={librarySel} onToggle={toggle} />}
+          : <LibraryTab catalog={catalog} scope={scope} query={query} selected={librarySel} onToggle={toggle} remaining={remaining} />}
       </div>
       <ActionBar known={scope} selectedIds={selected} byId={catalog.byId} showRemove={tab === 'active'}
         onAdd={(targets) => { void runAdd(resolveTargets(scope, targets), selected, catalog.byId); clear(); }}
-        onRemove={(targets) => { void runRemove(resolveTargets(scope, targets), selected); clear(); }}
+        onRemove={(targets) => { void runRemove(resolveTargets(scope, targets), selected, catalog.byId); clear(); }}
         onClear={clear} />
     </div>
   );

@@ -1,6 +1,6 @@
 [package]
 name = "roexi"
-version = "0.2.2-beta"
+version = "0.3.0-beta"
 description = "roexi"
 authors = ["Adam Hemmings"]
 edition = "2021"

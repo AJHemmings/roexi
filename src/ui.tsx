@@ -179,3 +179,18 @@ export function Tip({ label, side = 'right', compactOnly = false }: { label: str
     <span role="tooltip" className={`pointer-events-none absolute z-50 ${pos} ${gate} whitespace-nowrap rounded-md bg-surface-raised border border-line px-2 py-1 text-[11px] font-semibold text-fg-2 shadow-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100`}>{label}</span>
   );
 }
+
+// A "?" that explains something in a sentence or two. Unlike Tip it wraps, and it also opens on keyboard focus.
+export function HelpTip({ text, side = 'bottom', align = 'center' }: { text: string; side?: 'bottom' | 'top'; align?: 'center' | 'end' }) {
+  const id = useId();
+  const pos = side === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5';
+  const align_ = align === 'end' ? 'right-0' : 'left-1/2 -translate-x-1/2';
+  return (
+    <span className="group relative inline-flex align-middle">
+      <button type="button" aria-label="Help" aria-describedby={id}
+        className="w-3.5 h-3.5 rounded-full border border-line grid place-items-center text-[9px] font-bold leading-none text-fg-4 hover:text-fg-2 focus-visible:text-fg-2 focus-visible:border-accent/60 outline-none">?</button>
+      <span id={id} role="tooltip"
+        className={`pointer-events-none absolute z-50 ${align_} ${pos} w-max max-w-[240px] whitespace-normal rounded-md bg-surface-raised border border-line px-2 py-1 text-[11px] font-medium leading-snug text-fg-2 shadow-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100`}>{text}</span>
+    </span>
+  );
+}
