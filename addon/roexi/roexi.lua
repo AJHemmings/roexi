@@ -30,7 +30,6 @@ local rx, txbuf = '', ''
 local last_send = 0
 local act_queue, act_t = {}, 0
 local last_player_id = nil
-local last_notice = nil        -- last app notice printed this load (de-dupe)
 
 local function chat(msg) windower.add_to_chat(207, TAG .. msg) end
 
@@ -203,11 +202,12 @@ local function dispatch(line)
     elseif msg.cmd == 'sync' then
         send_snapshot('self')
     elseif msg.cmd == 'notice' then
-        -- Printed as-is from the app (e.g. "update available ..."). Game chat is not UTF-8: keep printable ASCII only.
+        -- Printed as-is from the app (e.g. "update available ...", "removed: ..."). Game chat is
+        -- not UTF-8: keep printable ASCII only. The app only sends each notice once per connection,
+        -- so no de-dupe here — a second identical notice (e.g. another "removed: X") must still print.
         if type(msg.msg) == 'string' then
             local text = (msg.msg:gsub('[^\32-\126]', '')):sub(1, 200)
-            if text ~= '' and text ~= last_notice then
-                last_notice = text
+            if text ~= '' then
                 chat(text)
             end
         end
