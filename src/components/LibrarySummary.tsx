@@ -76,7 +76,7 @@ export function LibrarySummary({ scope, catalog }: { scope: KnownChar[]; catalog
   const selectedRow = selectedName == null ? null : rows.find((r) => r.c.name === selectedName) ?? null;
   return (
     <div className="mb-2 px-1 flex flex-col gap-1.5">
-      <span className="text-[10px] font-bold uppercase tracking-wide text-fg-4">Stats</span>
+      <span className="text-[10px] font-bold uppercase tracking-wide text-fg-4">Quick stats</span>
       <div className="flex flex-wrap gap-1.5">
         {rows.map(({ c, s }) => <ScopeChip key={c.name} c={c} s={s} onOpen={() => setSelectedName(c.name)} />)}
       </div>
