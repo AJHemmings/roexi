@@ -35,7 +35,7 @@ export type Arc = { start: number; end: number; index: number };
 /** One slice per positive value, from 12 o'clock clockwise, summing to a full turn. [] when nothing is positive. */
 export function donutArcs(values: number[]): Arc[] {
   const total = values.reduce((s, v) => s + Math.max(0, v), 0);
-  if (total <= 0) return [];
+  if (!(total > 0)) return [];
   const out: Arc[] = [];
   let a = 0;
   values.forEach((v, index) => {

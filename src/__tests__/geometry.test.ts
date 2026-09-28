@@ -53,6 +53,9 @@ describe('donutArcs', () => {
   it('a single slice is a full turn', () => {
     expect(donutArcs([5])).toEqual([{ start: 0, end: TAU, index: 0 }]);
   });
+  it('treats a NaN input as nothing to draw', () => {
+    expect(donutArcs([NaN])).toEqual([]);
+  });
 });
 
 describe('arcPath', () => {
@@ -65,5 +68,9 @@ describe('arcPath', () => {
     const d = arcPath(50, 50, 40, 25, 0, TAU);
     expect(d.match(/M/g)).toHaveLength(2);
     expect(d).not.toContain('NaN');
+  });
+  it('sets the large-arc flag for a segment over half a turn', () => {
+    expect(arcPath(50, 50, 40, 25, 0, (3 * Math.PI) / 2)).toContain(' 0 1 1 ');
+    expect(arcPath(50, 50, 40, 25, 0, Math.PI / 2)).toContain(' 0 0 1 ');
   });
 });
