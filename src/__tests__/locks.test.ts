@@ -16,14 +16,14 @@ const byId = new Map(entries.map((e) => [e.id, e]));
 describe('objectiveState', () => {
   it('auto ids are auto', () => expect(objectiveState(char('A'), 4008, byId)).toBe('auto'));
   it('active wins over everything else', () => {
-    const c = char('A', { active: [{ id: 1, p: 0 }], doneIds: new Set([1]), locked: new Map([[1, 5]]) });
+    const c = char('A', { active: [{ id: 1, p: 0 }], doneIds: new Set([1]), gameLocked: new Map([[1, 5]]) });
     expect(objectiveState(c, 1, byId)).toBe('active');
   });
   it('a completed one-time objective is done', () => expect(objectiveState(char('A', { doneIds: new Set([1]) }), 1, byId)).toBe('done'));
   it('a completed repeatable is open again', () => expect(objectiveState(char('A', { doneIds: new Set([2]) }), 2, byId)).toBe('open'));
-  it('a refused id is locked', () => expect(objectiveState(char('A', { locked: new Map([[3, 5]]) }), 3, byId)).toBe('locked'));
+  it('a refused id is locked', () => expect(objectiveState(char('A', { gameLocked: new Map([[3, 5]]) }), 3, byId)).toBe('locked'));
   it('locked wins over unknown', () => {
-    expect(objectiveState(char('A', { donePagesKnown: new Set(), locked: new Map([[3, 5]]) }), 3, byId)).toBe('locked');
+    expect(objectiveState(char('A', { donePagesKnown: new Set(), gameLocked: new Map([[3, 5]]) }), 3, byId)).toBe('locked');
   });
   it('a missing completion page is unknown', () => expect(objectiveState(char('A', { donePagesKnown: new Set() }), 3, byId)).toBe('unknown'));
   it('otherwise open', () => expect(objectiveState(char('A'), 3, byId)).toBe('open'));
@@ -42,7 +42,7 @@ describe('isRemaining / showInRemaining', () => {
     expect(showInRemaining(scope, 1, byId)).toBe(true);
   });
   it('All scope: hidden when nobody could add it', () => {
-    const scope = [char('A', { doneIds: new Set([1]) }), char('B', { locked: new Map([[1, 5]]) })];
+    const scope = [char('A', { doneIds: new Set([1]) }), char('B', { gameLocked: new Map([[1, 5]]) })];
     expect(showInRemaining(scope, 1, byId)).toBe(false);
   });
 });

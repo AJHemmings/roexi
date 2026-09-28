@@ -2,7 +2,7 @@ import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { appLocalDataDir } from '@tauri-apps/api/path';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { parseFrame, applyFrame, sanitizeLocked } from './frames';
+import { parseFrame, applyFrame, sanitizePersisted } from './frames';
 import { doneFromPages } from '../roe/bitmap';
 import type { Box, KnownChar, PersistedChar } from '../roe/types';
 
@@ -31,7 +31,7 @@ function toKnown(name: string, b: Box | undefined, pc: PersistedChar | undefined
     doneIds,
     donePagesKnown,
     savedAt: pc?.savedAt,
-    locked: new Map(Object.entries(b?.locked ?? pc?.locked ?? {}).map(([k, at]) => [Number(k), at])),
+    gameLocked: new Map(Object.entries(b?.gameLocked ?? pc?.gameLocked ?? {}).map(([k, at]) => [Number(k), at])),
   };
 }
 
@@ -147,7 +147,7 @@ const safeName = (n: string) => n.replace(/[^A-Za-z0-9]/g, '_');
 function persistOf(b: Box): PersistedChar {
   return {
     name: b.name, id: b.id, main: b.main, sub: b.sub, zoneName: b.zoneName,
-    active: b.active, activeAt: b.activeAt, donePages: b.donePages, doneAt: b.doneAt, locked: b.locked, savedAt: Date.now(),
+    active: b.active, activeAt: b.activeAt, donePages: b.donePages, doneAt: b.doneAt, gameLocked: b.gameLocked, savedAt: Date.now(),
   };
 }
 
@@ -172,8 +172,7 @@ async function loadPersisted() {
     const files = await invoke<string[]>('list_dir', { path: await cacheDir() });
     const loaded = await Promise.all(files.filter((f) => f.toLowerCase().endsWith('.json')).map(async (f) => {
       try {
-        const pc = JSON.parse(await invoke<string>('read_text_file', { path: f })) as PersistedChar;
-        return pc && pc.name ? { ...pc, locked: sanitizeLocked(pc.locked) } : null;
+        return sanitizePersisted(JSON.parse(await invoke<string>('read_text_file', { path: f })));
       } catch { return null; /* skip bad file */ }
     }));
     for (const pc of loaded) if (pc) persisted.set(pc.name, pc);
@@ -193,41 +192,6 @@ export async function removeChar(name: string): Promise<void> {
 
 /** Dev-only: lets the browser mock feed pretend a character was seen before. */
 export function seedPersisted(pc: PersistedChar) { persisted.set(pc.name, pc); scheduleRebuild(); }
-
-// ── locked marks (spec §3) ───────────────────────────────────────────────────
-/** Mark ids the game refused for this connection's character. Ids active right now are skipped:
- * they clearly landed (a late 0x111), so marking them would be wrong. `name` guards against a
- * shared-client swap: a batch can be in flight for up to ~16.5s, long enough for a different
- * character to hello on the same conn (without a dropConn) before this resolves; without the
- * check the old batch's ack would mark the new character's ids instead. */
-export function recordRefusals(conn: number, name: string, ids: number[], at: number): void {
-  const b = byConn.get(conn);
-  if (!b || b.name !== name) return;
-  const activeNow = new Set((b.active ?? []).map((a) => a.id));
-  const fresh = ids.filter((id) => !activeNow.has(id));
-  if (fresh.length === 0) return;
-  const locked = { ...(b.locked ?? {}) };
-  for (const id of fresh) locked[id] = at;
-  const box = { ...b, locked };
-  byConn.set(conn, box);
-  schedulePersist(persistOf(box));
-  rebuild(); // not scheduleRebuild(): deliberate, so the UI updates right after this click/batch, not 150ms later
-}
-
-/** "Forget locked marks": online or offline. Writes `{}` (not undefined) so the merge in schedulePersist clears it. */
-export function clearLocks(name: string): void {
-  let online = false;
-  for (const [conn, b] of byConn) {
-    if (b.name !== name) continue;
-    online = true;
-    const box = { ...b, locked: {} };
-    byConn.set(conn, box);
-    schedulePersist(persistOf(box));
-  }
-  const pc = persisted.get(name);
-  if (!online && pc) schedulePersist({ ...pc, locked: {}, savedAt: Date.now() });
-  rebuild();
-}
 
 // ── seq/ack and "next roe frame" waiters ─────────────────────────────────────
 let seqCounter = 1;

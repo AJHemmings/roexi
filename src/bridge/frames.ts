@@ -74,9 +74,9 @@ export function parseFrame(line: string): Frame | null {
 }
 
 export type Applied = { box: Box; persist: boolean };
-export type Seed = Pick<PersistedChar, 'active' | 'activeAt' | 'donePages' | 'doneAt' | 'locked'> | undefined;
+export type Seed = Pick<PersistedChar, 'active' | 'activeAt' | 'donePages' | 'doneAt' | 'gameLocked'> | undefined;
 
-/** Loader-side validation for persisted `locked` (files on disk are untrusted, like frames). */
+/** Loader-side validation for persisted `gameLocked` (files on disk are untrusted, like frames). */
 export function sanitizeLocked(v: unknown): Record<number, number> | undefined {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
   const out: Record<number, number> = {};
@@ -87,7 +87,18 @@ export function sanitizeLocked(v: unknown): Record<number, number> | undefined {
   return out;
 }
 
-/** Self-correct (spec §2 rule 2): an id seen active or completed was clearly not locked. */
+/** Loader-side validation for one characters/<name>.json. Drops the pre-0.4 `locked` field: every
+ * entry in it was the app's own guess, and only the game's own word may become a lock (spec §5).
+ * Deleting the key (not just ignoring it) stops schedulePersist's merge from writing it back. */
+export function sanitizePersisted(raw: unknown): PersistedChar | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const pc = { ...(raw as PersistedChar & { locked?: unknown }) };
+  if (typeof pc.name !== 'string' || !pc.name) return null;
+  delete pc.locked;
+  return { ...pc, gameLocked: sanitizeLocked(pc.gameLocked) };
+}
+
+/** Self-correct: an id seen active or completed clearly wasn't locked. */
 function unlock(locked: Record<number, number> | undefined, ids: number[]): Record<number, number> | undefined {
   if (!locked) return locked;
   let next: Record<number, number> | undefined;
@@ -115,15 +126,15 @@ export function applyFrame(prev: Box | undefined, conn: number, f: StateFrame, n
         sub: f.sub ?? carry?.sub, subLvl: f.sub_lvl ?? carry?.subLvl,
         zone: f.zone ?? carry?.zone, zoneName: f.zone_name ?? carry?.zoneName,
         server: f.server ?? carry?.server, av: f.av ?? carry?.av, apath: f.apath ?? carry?.apath,
-        active: base?.active, activeAt: base?.activeAt, donePages: base?.donePages, doneAt: base?.doneAt, locked: base?.locked,
+        active: base?.active, activeAt: base?.activeAt, donePages: base?.donePages, doneAt: base?.doneAt, gameLocked: base?.gameLocked,
         lastSeen: now,
       },
     };
   }
   if (!prev) return null;
-  if (f.t === 'roe') return { persist: true, box: { ...prev, active: f.items, activeAt: now, lastSeen: now, locked: unlock(prev.locked, f.items.map((i) => i.id)) } };
+  if (f.t === 'roe') return { persist: true, box: { ...prev, active: f.items, activeAt: now, lastSeen: now, gameLocked: unlock(prev.gameLocked, f.items.map((i) => i.id)) } };
   // Any completion bit clears the mark, including a repeatable completed just once: if it was ever
   // completed it was clearly not locked, even though a repeatable can cycle back to open afterwards.
-  if (f.t === 'roedone') return { persist: true, box: { ...prev, donePages: { ...(prev.donePages ?? {}), [f.page]: f.ids }, doneAt: now, lastSeen: now, locked: unlock(prev.locked, f.ids) } };
+  if (f.t === 'roedone') return { persist: true, box: { ...prev, donePages: { ...(prev.donePages ?? {}), [f.page]: f.ids }, doneAt: now, lastSeen: now, gameLocked: unlock(prev.gameLocked, f.ids) } };
   return null;
 }

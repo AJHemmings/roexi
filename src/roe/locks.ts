@@ -12,7 +12,7 @@ export function objectiveState(c: KnownChar, id: number, byId: Map<number, Catal
   if (c.active.some((a) => a.id === id)) return 'active';
   const done = doneState(c, id);
   if (done === 'done' && byId.get(id)?.repeat === false) return 'done';
-  if (c.locked?.has(id)) return 'locked';
+  if (c.gameLocked?.has(id)) return 'locked';
   if (done === 'unknown') return 'unknown';
   return 'open';
 }

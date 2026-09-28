@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseFrame, applyFrame, sanitizeLocked } from '../bridge/frames';
+import { parseFrame, applyFrame, sanitizeLocked, sanitizePersisted } from '../bridge/frames';
 import type { StateFrame } from '../bridge/frames';
 import type { Box } from '../roe/types';
 
@@ -102,44 +102,44 @@ describe('applyFrame', () => {
   });
 });
 
-describe('locked marks', () => {
+describe('game lock storage', () => {
   const now = 1000;
   const helloF = parseFrame(JSON.stringify({ t: 'hello', id: 9, name: 'Lockie' }))! as StateFrame;
   const base = applyFrame(undefined, 9, helloF, now)!.box;
 
-  it('hello seeds locked from the persisted snapshot', () => {
-    const r = applyFrame(undefined, 9, helloF, now, { locked: { 5: 1 } })!;
-    expect(r.box.locked).toEqual({ 5: 1 });
+  it('hello seeds gameLocked from the persisted snapshot', () => {
+    const r = applyFrame(undefined, 9, helloF, now, { gameLocked: { 5: 1 } })!;
+    expect(r.box.gameLocked).toEqual({ 5: 1 });
   });
-  it('a same-character hello keeps its marks', () => {
-    const r = applyFrame({ ...base, locked: { 5: 1 } }, 9, helloF, now)!;
-    expect(r.box.locked).toEqual({ 5: 1 });
+  it('a same-character hello keeps its entries', () => {
+    const r = applyFrame({ ...base, gameLocked: { 5: 1 } }, 9, helloF, now)!;
+    expect(r.box.gameLocked).toEqual({ 5: 1 });
   });
-  it('roe clears a mark whose id is now active, keeps the rest, and persists', () => {
+  it('roe clears an entry whose id is now active, keeps the rest, and persists', () => {
     const f = parseFrame('{"t":"roe","items":[{"id":5,"p":0}]}')! as StateFrame;
-    const r = applyFrame({ ...base, locked: { 5: 1, 6: 1 } }, 9, f, now)!;
-    expect(r.box.locked).toEqual({ 6: 1 });
+    const r = applyFrame({ ...base, gameLocked: { 5: 1, 6: 1 } }, 9, f, now)!;
+    expect(r.box.gameLocked).toEqual({ 6: 1 });
     expect(r.persist).toBe(true);
   });
-  it('roedone clears a mark whose id is now completed', () => {
+  it('roedone clears an entry whose id is now completed', () => {
     const f = parseFrame('{"t":"roedone","page":0,"ids":[6]}')! as StateFrame;
-    const r = applyFrame({ ...base, locked: { 5: 1, 6: 1 } }, 9, f, now)!;
-    expect(r.box.locked).toEqual({ 5: 1 });
+    const r = applyFrame({ ...base, gameLocked: { 5: 1, 6: 1 } }, 9, f, now)!;
+    expect(r.box.gameLocked).toEqual({ 5: 1 });
   });
   it('keeps the same object when nothing was cleared', () => {
     const locked = { 5: 1 };
     const f = parseFrame('{"t":"roe","items":[{"id":7,"p":0}]}')! as StateFrame;
-    expect(applyFrame({ ...base, locked }, 9, f, now)!.box.locked).toBe(locked);
+    expect(applyFrame({ ...base, gameLocked: locked }, 9, f, now)!.box.gameLocked).toBe(locked);
   });
-  it('a different-id hello (character swap) takes the seed, not the old box, and uses the seed\'s locked', () => {
+  it('a different-id hello (character swap) takes the seed, not the old box, and uses the seed\'s gameLocked', () => {
     const swapHello = parseFrame(JSON.stringify({ t: 'hello', id: 10, name: 'Other' }))! as StateFrame;
-    const r = applyFrame({ ...base, locked: { 5: 1 } }, 9, swapHello, now, { locked: { 7: 2 } })!;
-    expect(r.box.locked).toEqual({ 7: 2 });
+    const r = applyFrame({ ...base, gameLocked: { 5: 1 } }, 9, swapHello, now, { gameLocked: { 7: 2 } })!;
+    expect(r.box.gameLocked).toEqual({ 7: 2 });
   });
-  it('a different-id hello with no seed has no locked marks', () => {
+  it('a different-id hello with no seed has no gameLocked entries', () => {
     const swapHello = parseFrame(JSON.stringify({ t: 'hello', id: 10, name: 'Other' }))! as StateFrame;
-    const r = applyFrame({ ...base, locked: { 5: 1 } }, 9, swapHello, now)!;
-    expect(r.box.locked).toBeUndefined();
+    const r = applyFrame({ ...base, gameLocked: { 5: 1 } }, 9, swapHello, now)!;
+    expect(r.box.gameLocked).toBeUndefined();
   });
 });
 
@@ -154,5 +154,20 @@ describe('sanitizeLocked', () => {
     expect(sanitizeLocked(null)).toBeUndefined();
     expect(sanitizeLocked([1, 2])).toBeUndefined();
     expect(sanitizeLocked('x')).toBeUndefined();
+  });
+});
+
+describe('sanitizePersisted', () => {
+  it('drops the pre-0.4 guessed locked field entirely', () => {
+    const pc = sanitizePersisted({ name: 'A', savedAt: 1, locked: { 5: 100 } })!;
+    expect('locked' in pc).toBe(false);
+    expect(pc.gameLocked).toBeUndefined();
+  });
+  it('keeps and validates gameLocked', () => {
+    expect(sanitizePersisted({ name: 'A', savedAt: 1, gameLocked: { 5: 100, 0: 1 } })!.gameLocked).toEqual({ 5: 100 });
+  });
+  it('rejects files without a name', () => {
+    expect(sanitizePersisted({ savedAt: 1 })).toBeNull();
+    expect(sanitizePersisted(null)).toBeNull();
   });
 });
