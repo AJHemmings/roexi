@@ -21,7 +21,7 @@ describe('objectiveState', () => {
   });
   it('a completed one-time objective is done', () => expect(objectiveState(char('A', { doneIds: new Set([1]) }), 1, byId)).toBe('done'));
   it('a completed repeatable is open again', () => expect(objectiveState(char('A', { doneIds: new Set([2]) }), 2, byId)).toBe('open'));
-  it('a refused id is locked', () => expect(objectiveState(char('A', { gameLocked: new Map([[3, 5]]) }), 3, byId)).toBe('locked'));
+  it('a game-locked id is locked', () => expect(objectiveState(char('A', { gameLocked: new Map([[3, 5]]) }), 3, byId)).toBe('locked'));
   it('locked wins over unknown', () => {
     expect(objectiveState(char('A', { donePagesKnown: new Set(), gameLocked: new Map([[3, 5]]) }), 3, byId)).toBe('locked');
   });

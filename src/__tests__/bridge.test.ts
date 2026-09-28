@@ -129,4 +129,14 @@ describe('game lock storage', () => {
     vi.advanceTimersByTime(200);
     expect(known('Lock2')!.gameLocked?.has(5)).toBe(false);
   });
+
+  it('an entry cleared while online stays cleared after going offline', () => {
+    seedPersisted({ name: 'Lock3', gameLocked: { 5: 1, 6: 1 }, savedAt: 1 });
+    ingestLine(63, hello(63, 'Lock3'));
+    ingestLine(63, roe([{ id: 5, p: 0 }]));   // self-correct clears 5 on the live box
+    dropConn(63);                              // now read from the persisted snapshot only
+    const g = known('Lock3')!.gameLocked!;
+    expect(g.has(5)).toBe(false);
+    expect(g.get(6)).toBe(1);
+  });
 });
