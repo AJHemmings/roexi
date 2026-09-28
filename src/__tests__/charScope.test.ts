@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveScope } from '../components/CharScope';
+import { resolveScope, SCOPE_KEYS } from '../components/CharScope';
 import type { KnownChar } from '../roe/types';
 
 const char = (name: string, over: Partial<KnownChar> = {}): KnownChar => ({
@@ -19,5 +19,12 @@ describe('resolveScope', () => {
 
   it('resolves a name no longer present in known to an empty scope', () => {
     expect(resolveScope('Ghost', known)).toEqual([]);
+  });
+});
+
+describe('SCOPE_KEYS', () => {
+  it('Records and Stats persist their character pick under different keys', () => {
+    expect(SCOPE_KEYS.records).toBe('records.scope.v2'); // unchanged, so existing picks survive
+    expect(SCOPE_KEYS.stats).not.toBe(SCOPE_KEYS.records);
   });
 });
