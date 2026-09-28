@@ -41,7 +41,8 @@ export type JoinReport = {
   unmatchedIds: string[];
   unmatchedWiki: string[];
 };
-export type FallbackRule = [RegExp, string, string | ((m: RegExpMatchArray) => string)];
+/** [name pattern, category, subcategory, repeat flag to set when the wiki gave none]. */
+export type FallbackRule = [RegExp, string, string | ((m: RegExpMatchArray) => string), boolean?];
 
 // Same value as AUTO_RANGE in src/roe/types.ts (the canonical constant; created in a later task). Keep them equal.
 export const AUTO_RANGE: readonly [number, number] = [4008, 4021];
@@ -66,12 +67,14 @@ export const ALIASES: Map<string, string> = new Map(
 
 // Category guesses for ids the wiki does not list, keyed on the client name.
 export const FALLBACK: FallbackRule[] = [
-  [/^(san d'oria|bastok|windurst) rank/i, 'Tutorial', (m) => `Missions (${m[1]})`],
-  [/^rise of the zilart/i, 'Tutorial', 'Missions (Zilart)'],
-  [/^chains of promathia/i, 'Tutorial', 'Missions (Promathia)'],
-  [/^treasures of aht urhgan/i, 'Tutorial', 'Missions (Aht Urhgan)'],
-  [/^wings of the goddess/i, 'Tutorial', 'Missions (Altana)'],
-  [/^seekers of adoulin/i, 'Tutorial', 'Missions (Adoulin)'],
+  // Mission chapters are one-time: you finish chapter N once. The wiki documents unlocks, not each
+  // chapter, so these ids never get a repeat flag from the join.
+  [/^(san d'oria|bastok|windurst) rank/i, 'Tutorial', (m) => `Missions (${m[1]})`, false],
+  [/^rise of the zilart/i, 'Tutorial', 'Missions (Zilart)', false],
+  [/^chains of promathia/i, 'Tutorial', 'Missions (Promathia)', false],
+  [/^treasures of aht urhgan/i, 'Tutorial', 'Missions (Aht Urhgan)', false],
+  [/^wings of the goddess/i, 'Tutorial', 'Missions (Altana)', false],
+  [/^seekers of adoulin/i, 'Tutorial', 'Missions (Adoulin)', false],
   [/\(uc\)$/i, 'Unity', 'Unity'],
   [/\(vbd\)$/i, 'Special Events', "Vana'bout Daily"],
   [/\(vb\)$/i, 'Special Events', "Vana'bout Round"],
@@ -261,11 +264,12 @@ export function joinSources(mapping: MappingEntry[], wikiRows: WikiRow[]): { ent
   // Pass 3: category by name shape only.
   for (const e of pending) {
     let matched = false;
-    for (const [re, cat, sub] of FALLBACK) {
+    for (const [re, cat, sub, repeat] of FALLBACK) {
       const m = e.n.match(re);
       if (!m) continue;
       e.cat = cat;
       e.sub = typeof sub === 'function' ? sub(m) : sub;
+      if (repeat !== undefined && e.repeat === undefined) e.repeat = repeat;
       matched = true;
       break;
     }
@@ -276,7 +280,8 @@ export function joinSources(mapping: MappingEntry[], wikiRows: WikiRow[]): { ent
   for (const e of entries) {
     if (e.id >= AUTO_RANGE[0] && e.id <= AUTO_RANGE[1]) { e.auto = true; e.cat = 'Other'; e.sub = 'Daily Objectives'; }
     const tier = unityWantedTier(e);
-    if (tier) { e.cat = 'Unity'; e.sub = tier; }
+    // Every Wanted tier is repeatable like tier I; only the wiki's own flag (tier I rows) wins over this.
+    if (tier) { e.cat = 'Unity'; e.sub = tier; if (e.repeat === undefined) e.repeat = true; }
   }
   return { entries, report };
 }

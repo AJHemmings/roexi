@@ -101,6 +101,33 @@ describe('joinSources', () => {
     const { entries } = joinSources([{ id: 901, n: "Conflict: Escha - Zi'Tah VI" }], []);
     expect(entries[0]).toMatchObject({ cat: 'Combat (Region)', sub: 'Combat (Region)' });
   });
+
+  it('marks mission chapters the wiki does not list as one-time', () => {
+    const { entries } = joinSources([
+      { id: 1, n: 'Rise of the Zilart 5' },
+      { id: 2, n: "San d'Oria Rank 3-1" },
+      { id: 3, n: 'Seekers of Adoulin 2' },
+    ], []);
+    expect(entries.map((e) => [e.sub, e.repeat])).toEqual([
+      ['Missions (Zilart)', false],
+      ["Missions (San d'Oria)", false],
+      ['Missions (Adoulin)', false],
+    ]);
+  });
+
+  it('marks Unity Wanted tiers repeatable when the wiki gave no flag, and never overrides a wiki flag', () => {
+    const { entries } = joinSources([
+      { id: 817, n: 'Subjugation: Hugemaw Harold (UC)' },
+      { id: 854, n: 'Subjugation: Sybaritic Samantha (UC)' },
+      { id: 915, n: 'Subjugation: Hidhaegg (UC)' },
+    ], [row('Subjugation: Hugemaw Harold (UC)', 'Unity', 'Unity (Wanted)', { repeat: false })]);
+    expect(entries.map((e) => [e.id, e.repeat])).toEqual([[817, false], [854, true], [915, true]]);
+  });
+
+  it('leaves the repeat flag unset for fallback rules that do not carry one', () => {
+    const { entries } = joinSources([{ id: 5, n: 'Spoils (Red Chip)' }], []);
+    expect(entries[0].repeat).toBeUndefined();
+  });
 });
 
 describe('isTypoPair', () => {
