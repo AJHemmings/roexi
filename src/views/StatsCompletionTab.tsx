@@ -25,7 +25,7 @@ export default function StatsCompletionTab({ scope, catalog, colorOf, kind, setK
   setKind: (k: CompletionKind) => void;
 }) {
   const [rawChart, setRawChart] = useStickyPersisted<unknown>('stats.chart', DEFAULT_CHART);
-  const chart = parseChartPrefs(rawChart);
+  const chart = useMemo(() => parseChartPrefs(rawChart), [rawChart]);
   const setChart = (patch: Partial<ChartPrefs>) => setRawChart((prev: unknown) => ({ ...parseChartPrefs(prev), ...patch }));
 
   const comps = useMemo(() => scope.map((c) => ({ c, comp: completionFor(c, catalog.entries, kind) })), [scope, catalog, kind]);
@@ -79,7 +79,7 @@ export default function StatsCompletionTab({ scope, catalog, colorOf, kind, setK
               selected={active} onSelect={setCell} />
           </div>
           <div className="flex-1 min-w-0">
-            <Explorer key={active ? `${active.char}|${active.cat ?? ''}|${active.sub ?? ''}` : 'none'} char={activeChar} entries={explorerEntries} title={active?.sub ?? active?.cat ?? 'Overall'} />
+            <Explorer key={active ? `${kind}|${active.char}|${active.cat ?? ''}|${active.sub ?? ''}` : 'none'} char={activeChar} entries={explorerEntries} title={active?.sub ?? active?.cat ?? 'Overall'} />
           </div>
         </div>
       </section>

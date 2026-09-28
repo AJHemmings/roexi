@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useStickyPersisted } from '../sticky';
 import { useKnownCharacters } from '../bridge';
 import { Select } from '../ui';
@@ -29,7 +30,8 @@ export function resolveScope(selected: string | null, known: KnownChar[]): Known
 export function useCharScope(storageKey: string = SCOPE_KEYS.records): { known: KnownChar[]; scope: KnownChar[]; charSelected: string | null; setCharSelected: (v: string | null) => void } {
   const known = useKnownCharacters();
   const [charSelected, setCharSelected] = useStickyPersisted<string | null>(storageKey, null);
-  return { known, scope: resolveScope(charSelected, known), charSelected, setCharSelected };
+  const scope = useMemo(() => resolveScope(charSelected, known), [charSelected, known]);
+  return { known, scope, charSelected, setCharSelected };
 }
 
 /**

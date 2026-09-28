@@ -13,7 +13,7 @@ export default function StatsView() {
   const catalog = useCatalog();
   const { known, scope, charSelected, setCharSelected } = useCharScope(SCOPE_KEYS.stats);
   const [rawView, setRawView] = useStickyPersisted<unknown>('stats.view', DEFAULT_VIEW);
-  const view = parseViewPrefs(rawView);
+  const view = useMemo(() => parseViewPrefs(rawView), [rawView]);
   const setView = (patch: Partial<ViewPrefs>) => setRawView((prev: unknown) => ({ ...parseViewPrefs(prev), ...patch }));
   const colorOf = useMemo(() => colorByName(known.map((c) => c.name)), [known]);
 

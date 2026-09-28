@@ -39,6 +39,9 @@ export default function StatsLeftTab({ scope, catalog, colorOf, kind, setKind, s
   );
   const many = scope.length > 1;
   const clear = () => setSelected([]);
+  const visibleIds = useMemo(() => new Set(list.map((e) => e.id)), [list]);
+  const effective = selected.filter((id) => visibleIds.has(id));
+  const who = useMemo(() => new Map(list.map((e) => [e.id, neededBy(scope, e.id, catalog.byId)])), [list, scope, catalog]);
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
@@ -64,10 +67,10 @@ export default function StatsLeftTab({ scope, catalog, colorOf, kind, setKind, s
         ) : (
           <div className="rounded-xl bg-surface border border-line divide-y divide-line overflow-hidden">
             {list.map((e) => {
-              const who = neededBy(scope, e.id, catalog.byId);
-              const locked = scope.some((c) => c.gameLocked?.has(e.id));
+              const rowWho = who.get(e.id) ?? [];
+              const locked = scope.some((c) => rowWho.includes(c.name) && c.gameLocked?.has(e.id));
               return (
-                <ObjectiveRow key={e.id} id={e.id} entry={e} checkbox checked={selected.includes(e.id)} onToggle={() => setSelected((p) => toggleId(p, e.id))}
+                <ObjectiveRow key={e.id} id={e.id} entry={e} checkbox checked={effective.includes(e.id)} onToggle={() => setSelected((p) => toggleId(p, e.id))}
                   countLabel={`${e.sparks ?? '–'} sparks · ${e.exp ?? '–'} exp`}
                   badges={(
                     <>
@@ -77,13 +80,13 @@ export default function StatsLeftTab({ scope, catalog, colorOf, kind, setKind, s
                   )}
                   chips={many ? (
                     <span className="flex gap-1 shrink-0">
-                      {who.map((n) => <span key={n} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-field" style={{ color: colorOf(n) }}>{n.slice(0, 3)}</span>)}
+                      {rowWho.map((n) => <span key={n} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-field" style={{ color: colorOf(n) }}>{n.slice(0, 3)}</span>)}
                     </span>
                   ) : undefined}
                   expanded={(
                     <div className="flex flex-col gap-1 text-[11px] text-fg-3">
                       {e.text && <p className="leading-relaxed">{e.text}</p>}
-                      {many && <span className="text-fg-4">Still left for: {who.join(', ')}</span>}
+                      {many && <span className="text-fg-4">Still left for: {rowWho.join(', ')}</span>}
                     </div>
                   )} />
               );
@@ -92,8 +95,8 @@ export default function StatsLeftTab({ scope, catalog, colorOf, kind, setKind, s
         )}
       </div>
       {/* Rendered unconditionally: ActionBar returns null itself when nothing is selected (see ActionBar.tsx). */}
-      <ActionBar known={scope} selectedIds={selected} byId={catalog.byId} showRemove={false}
-        onAdd={(targets) => { void runAdd(resolveTargets(scope, targets), selected, catalog.byId); clear(); }}
+      <ActionBar known={scope} selectedIds={effective} byId={catalog.byId} showRemove={false}
+        onAdd={(targets) => { void runAdd(resolveTargets(scope, targets), effective, catalog.byId); clear(); }}
         onRemove={() => {}}
         onClear={clear} />
     </div>
