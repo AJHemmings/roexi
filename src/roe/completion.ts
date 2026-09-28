@@ -2,17 +2,15 @@
 // "How much is complete?" is answered only here. "Can this character still take it?" is answered
 // only by locks.ts (objectiveState / isRemaining); leftToDo/neededBy below delegate to it.
 import type { KnownChar, CatalogEntry } from './types';
-import { isAutoId } from './types';
+import { isAutoId, catOf, subOf } from './types';
 import { doneState } from './bitmap';
 import { isRemaining, objectiveState, showInRemaining } from './locks';
+
+export { UNCATEGORIZED, catOf, subOf } from './types';
 
 export type Kind = 'one-time' | 'repeatable' | 'event' | 'unclassified';
 export const KINDS: readonly Kind[] = ['one-time', 'repeatable', 'event', 'unclassified'];
 
-/** Same fallback label catalog.ts uses for entries with no category. */
-export const UNCATEGORIZED = 'Uncategorized';
-export const catOf = (e: CatalogEntry): string => e.cat ?? UNCATEGORIZED;
-export const subOf = (e: CatalogEntry): string => e.sub ?? UNCATEGORIZED;
 export const subKey = (cat: string, sub: string): string => `${cat}::${sub}`;
 
 /** null = never counted anywhere (the game's own rotating dailies, 4008-4021). */
@@ -30,8 +28,8 @@ export function kindOf(e: CatalogEntry): Kind | null {
 export const isCompleted = (c: KnownChar, id: number): boolean => doneState(c, id) === 'done';
 
 export type Tally = { done: number; total: number; unknown: number };
-export const ZERO: Tally = { done: 0, total: 0, unknown: 0 };
-/** Unknown counts as left, never done. */
+export const ZERO: Readonly<Tally> = Object.freeze({ done: 0, total: 0, unknown: 0 });
+/** total - done: everything not marked done, including active and unknown. */
 export const left = (t: Tally): number => t.total - t.done;
 
 export type CharCompletion = { name: string; overall: Tally; byCat: Map<string, Tally>; bySub: Map<string, Tally> };
@@ -79,7 +77,11 @@ export function cellEntries(entries: CatalogEntry[], kind: Kind, cat: string | n
   return entries.filter((e) => kindOf(e) === kind && (cat === null || catOf(e) === cat) && (sub === null || subOf(e) === sub));
 }
 
-/** Objectives of `kind` that at least one character in scope can still take: the Library Remaining rule. */
+/**
+ * "Can still add" — the Library Remaining rule. Deliberately not the same set as `left`: this
+ * excludes objectives a character already has active, but includes addable-again repeatables
+ * that are already done once.
+ */
 export function leftToDo(scope: KnownChar[], entries: CatalogEntry[], byId: Map<number, CatalogEntry>, kind: Kind): CatalogEntry[] {
   return entries.filter((e) => kindOf(e) === kind && showInRemaining(scope, e.id, byId));
 }

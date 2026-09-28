@@ -67,6 +67,10 @@ describe('completionFor', () => {
   it('ignores done ids that are not in the catalog', () => {
     expect(completionFor(char('A', { doneIds: new Set([1, 2985, 4085]) }), entries, 'one-time').overall.done).toBe(1);
   });
+  it('tallies an entry with no cat/sub under Uncategorized', () => {
+    expect(completionFor(char('A'), entries, 'unclassified').byCat.get('Uncategorized')).toEqual({ done: 0, total: 1, unknown: 0 });
+    expect(categoriesFor(entries, 'unclassified')).toEqual(['Combat (Wide Area)', 'Uncategorized']);
+  });
 });
 
 describe('quickStats', () => {
@@ -119,7 +123,9 @@ describe('sortLeft', () => {
   it('sparks: highest first, missing sparks last, then name', () => {
     expect(sortLeft(list, 'sparks').map((e) => e.id)).toEqual([2, 4, 1, 3]);
   });
-  it('exp: highest first', () => expect(sortLeft(list, 'exp')[0].id).toBe(3));
+  it('exp: highest first, missing exp last, then name', () => {
+    expect(sortLeft(list, 'exp').map((e) => e.id)).toEqual([3, 4, 1, 2]);
+  });
   it('category: category, then subcategory, then name', () => {
     expect(sortLeft(list, 'category').map((e) => e.id)).toEqual([4, 3, 1, 2]);
   });

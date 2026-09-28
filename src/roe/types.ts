@@ -81,6 +81,11 @@ export type CatalogEntry = {
   auto?: boolean;
 };
 
+/** Fallback label used wherever a catalog entry has no category/subcategory. */
+export const UNCATEGORIZED = 'Uncategorized';
+export const catOf = (e: CatalogEntry): string => e.cat ?? UNCATEGORIZED;
+export const subOf = (e: CatalogEntry): string => e.sub ?? UNCATEGORIZED;
+
 export type RoeSet = {
   id: string;
   name: string;

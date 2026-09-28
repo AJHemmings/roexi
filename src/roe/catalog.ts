@@ -1,10 +1,8 @@
 // Runtime catalog loader. buildCatalog is pure and tested directly; loadCatalog/useCatalog
 // are the thin fetch+hook wrapper that bridge/index.ts also uses this pattern for.
 import { useEffect, useState } from 'react';
-import { isAutoId } from './types';
+import { isAutoId, catOf, subOf } from './types';
 import type { CatalogEntry } from './types';
-
-const UNCATEGORIZED = 'Uncategorized';
 
 export type CategoryNode = { name: string; subs: Map<string, number[]> };
 export type Catalog = {
@@ -21,8 +19,8 @@ export function buildCatalog(entries: CatalogEntry[]): Catalog {
   const catOrder: string[] = [];
   const byCat = new Map<string, Map<string, number[]>>();
   for (const e of entries) {
-    const cat = e.cat ?? UNCATEGORIZED;
-    const sub = e.sub ?? UNCATEGORIZED;
+    const cat = catOf(e);
+    const sub = subOf(e);
     let subs = byCat.get(cat);
     if (!subs) { subs = new Map(); byCat.set(cat, subs); catOrder.push(cat); }
     let ids = subs.get(sub);
