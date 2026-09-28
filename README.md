@@ -20,6 +20,7 @@ roexi is a desktop app for FFXI multiboxers to view and manage Records of Eminen
 - **Always-visible slot counts**: each character's `X/30` stays pinned at the top while you scroll, so you can see who has room before you add anything.
 - **Safe Add/Remove**: while a change is going through for a character, their buttons grey out with a spinner, so a double-click can't send it twice.
 - **Sets**: save a named group of objectives once, then apply or remove it against any subset of your characters in a couple of clicks, instead of re-selecting the same objectives every session.
+- **Stats**: a completion log of your Records of Eminence. See one-time, repeatable and event objectives done vs. left, per character and per category, as a bar, radar or donut chart you can customise. Drill into any category to see exactly which objectives are done, and use **Left to do** to find and add what's left, sorted by sparks or exp.
 - **Multi-character throughout**: pick "All" or a single character from one dropdown, and every view/action scopes to that selection.
 - **Auto-update**: roexi checks for app and addon updates on launch. **Update all** installs both, and addon updates reload themselves in-game on every client, so there's nothing to type.
 
