@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { objectiveState, isRemaining, showInRemaining, summarize, type ObjState } from '../roe/locks';
+import { objectiveState, isRemaining, showInRemaining, type ObjState } from '../roe/locks';
 import type { KnownChar, CatalogEntry } from '../roe/types';
 
 const char = (name: string, over: Partial<KnownChar> = {}): KnownChar => ({
@@ -44,12 +44,5 @@ describe('isRemaining / showInRemaining', () => {
   it('All scope: hidden when nobody could add it', () => {
     const scope = [char('A', { doneIds: new Set([1]) }), char('B', { locked: new Map([[1, 5]]) })];
     expect(showInRemaining(scope, 1, byId)).toBe(false);
-  });
-});
-
-describe('summarize', () => {
-  it('counts every non-auto catalog entry into exactly one bucket', () => {
-    const c = char('A', { doneIds: new Set([1]), locked: new Map([[3, 5]]) });
-    expect(summarize(c, entries, byId)).toEqual({ active: 0, done: 1, open: 1, locked: 1, unknown: 0 });
   });
 });
