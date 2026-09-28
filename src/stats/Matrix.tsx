@@ -35,12 +35,16 @@ export function Matrix({ cols, cats, subsOf, selected, onSelect }: {
   const row = (label: ReactNode, key: string, cat: string | null, sub: string | null, pick: (c: CharCompletion) => Tally) => (
     <tr key={key} className="border-t border-line">
       <th scope="row" className="text-left font-normal align-middle pr-2 py-0.5">{label}</th>
-      {cols.map((col) => (
-        <td key={col.name} className="px-0.5 py-0.5 min-w-[84px]">
-          <MiniCell t={pick(col.comp)} color={col.color} selected={isSel(col.name, cat, sub)}
-            label={`${col.name}, ${sub ?? cat ?? 'Overall'}`} onClick={() => onSelect({ char: col.name, cat, sub })} />
-        </td>
-      ))}
+      {cols.map((col) => {
+        const t = pick(col.comp);
+        return (
+          <td key={col.name} className="px-0.5 py-0.5 min-w-[84px]">
+            <MiniCell t={t} color={col.color} selected={isSel(col.name, cat, sub)}
+              label={`${col.name}, ${sub ?? cat ?? 'Overall'}: ${t.done} of ${t.total}${t.unknown ? `, ${t.unknown} not loaded` : ''}`}
+              onClick={() => onSelect({ char: col.name, cat, sub })} />
+          </td>
+        );
+      })}
     </tr>
   );
   return (
@@ -63,7 +67,7 @@ export function Matrix({ cols, cats, subsOf, selected, onSelect }: {
           {cats.flatMap((cat) => {
             const isOpen = open.has(cat);
             const head = row(
-              <button type="button" onClick={() => toggle(cat)} className="le-tap inline-flex items-center gap-1.5 text-fg-2 font-semibold">
+              <button type="button" onClick={() => toggle(cat)} aria-expanded={isOpen} className="le-tap inline-flex items-center gap-1.5 text-fg-2 font-semibold">
                 <svg viewBox="0 0 24 24" className={`w-3 h-3 text-fg-4 ${isOpen ? 'rotate-90' : ''}`} style={{ transition: 'transform var(--dur-fast) var(--ease-out)' }} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 6 6 6-6 6" /></svg>
                 {cat}
               </button>,

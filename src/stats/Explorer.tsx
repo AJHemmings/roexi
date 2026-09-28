@@ -28,7 +28,7 @@ export function Explorer({ char, title, entries }: { char: KnownChar | undefined
             const st = isCompleted(char, e.id) ? 'done' : doneState(char, e.id) === 'unknown' ? 'unknown' : 'left';
             return (
               <li key={e.id} className="flex items-center gap-2 px-3 py-1.5 text-[12px]">
-                <span className={`w-4 text-center ${st === 'done' ? 'text-emerald-400' : 'text-fg-4'}`} aria-label={st}>{st === 'done' ? '✓' : st === 'unknown' ? '?' : '○'}</span>
+                <span className={`w-4 text-center ${st === 'done' ? 'text-emerald-400' : 'text-fg-4'}`} role="img" aria-label={st}>{st === 'done' ? '✓' : st === 'unknown' ? '?' : '○'}</span>
                 <span className={`truncate ${st === 'done' ? 'text-fg-3' : 'text-fg-2'}`}>{e.n}</span>
                 {char.gameLocked?.has(e.id) && <span className="ml-auto px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-field text-fg-4">Locked</span>}
               </li>
