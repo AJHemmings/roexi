@@ -8,11 +8,13 @@ import { useSettings } from './settings';
 import { getMode, applyWindowSize, watchMaximized } from './windowSize';
 import RecordsView from './views/RecordsView';
 import SetsView from './views/SetsView';
+import StatsView from './views/StatsView';
 import SettingsView from './views/SettingsView';
 
 const VIEWS: Record<Section, ReactElement> = {
   records: <RecordsView />,
   sets: <SetsView />,
+  stats: <StatsView />,
   settings: <SettingsView />,
 };
 
