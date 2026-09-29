@@ -25,6 +25,9 @@ describe('parseViewPrefs', () => {
     const v = parseViewPrefs({ tab: 'left', completionKind: 'event', leftKind: 'unclassified', leftSort: 'exp', leftHiddenCats: ['Unity'] });
     expect(v).toEqual({ tab: 'left', completionKind: 'event', leftKind: 'unclassified', leftSort: 'exp', leftHiddenCats: ['Unity'] });
   });
+  it('remembers the Objectives tab', () => {
+    expect(parseViewPrefs({ tab: 'objectives' }).tab).toBe('objectives');
+  });
 });
 
 describe('palette', () => {

@@ -10,7 +10,7 @@ export type MatrixCol = { name: string; online: boolean; color: string; comp: Ch
 function MiniCell({ t, color, selected, onClick, label }: { t: Tally; color: string; selected: boolean; onClick: () => void; label: string }) {
   return (
     <button type="button" onClick={onClick} aria-label={label} aria-pressed={selected}
-      className={`le-tap w-full flex flex-col gap-1 px-2 py-1.5 rounded-md border text-left transition-colors ${selected ? 'border-accent/70 bg-surface-hover' : 'border-transparent hover:border-line'}`}>
+      className={`le-tap w-full flex flex-col gap-1 px-1.5 py-1.5 rounded-md border text-left transition-colors ${selected ? 'border-accent/70 bg-surface-hover' : 'border-transparent hover:border-line'}`}>
       <div className="h-1.5 w-full rounded-full bg-field border border-line overflow-hidden">
         <div className="h-full rounded-full" style={{ width: `${fraction(t.done, t.total) * 100}%`, background: color }} />
       </div>
@@ -34,11 +34,11 @@ export function Matrix({ cols, cats, subsOf, selected, onSelect }: {
   const isSel = (col: string, cat: string | null, sub: string | null) => selected?.char === col && selected.cat === cat && selected.sub === sub;
   const row = (label: ReactNode, key: string, cat: string | null, sub: string | null, pick: (c: CharCompletion) => Tally) => (
     <tr key={key} className="border-t border-line">
-      <th scope="row" className="text-left font-normal align-middle pr-2 py-0.5">{label}</th>
+      <th scope="row" className="text-left font-normal align-middle pr-2 py-0.5 overflow-hidden">{label}</th>
       {cols.map((col) => {
         const t = pick(col.comp);
         return (
-          <td key={col.name} className="px-0.5 py-0.5 min-w-[84px]">
+          <td key={col.name} className="px-0.5 py-0.5">
             <MiniCell t={t} color={col.color} selected={isSel(col.name, cat, sub)}
               label={`${col.name}, ${sub ?? cat ?? 'Overall'}: ${t.done} of ${t.total}${t.unknown ? `, ${t.unknown} not loaded` : ''}`}
               onClick={() => onSelect({ char: col.name, cat, sub })} />
@@ -48,15 +48,15 @@ export function Matrix({ cols, cats, subsOf, selected, onSelect }: {
     </tr>
   );
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-[12px]">
-        <thead>
+    <div className="max-h-[340px] overflow-y-auto overflow-x-hidden no-scrollbar">
+      <table className="w-full table-fixed border-collapse text-[12px]">
+        <thead className="sticky top-0 z-10 bg-surface">
           <tr>
-            <th className="text-left text-[10px] font-bold uppercase tracking-wide text-fg-4 pb-1">Category</th>
+            <th className="w-[30%] text-left text-[10px] font-bold uppercase tracking-wide text-fg-4 pb-1">Category</th>
             {cols.map((col) => (
-              <th key={col.name} className="text-left text-[11px] font-semibold text-fg-2 pb-1 px-2">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${col.online ? 'bg-emerald-400' : 'bg-fg-4'}`} />{col.name}
+              <th key={col.name} title={col.name} className="text-left text-[11px] font-semibold text-fg-2 pb-1 px-1.5">
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <span className={`shrink-0 inline-block w-1.5 h-1.5 rounded-full ${col.online ? 'bg-emerald-400' : 'bg-fg-4'}`} /><span className="truncate">{col.name}</span>
                 </span>
               </th>
             ))}
@@ -67,15 +67,15 @@ export function Matrix({ cols, cats, subsOf, selected, onSelect }: {
           {cats.flatMap((cat) => {
             const isOpen = open.has(cat);
             const head = row(
-              <button type="button" onClick={() => toggle(cat)} aria-expanded={isOpen} className="le-tap inline-flex items-center gap-1.5 text-fg-2 font-semibold">
-                <svg viewBox="0 0 24 24" className={`w-3 h-3 text-fg-4 ${isOpen ? 'rotate-90' : ''}`} style={{ transition: 'transform var(--dur-fast) var(--ease-out)' }} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 6 6 6-6 6" /></svg>
-                {cat}
+              <button type="button" onClick={() => toggle(cat)} aria-expanded={isOpen} title={cat} className="le-tap flex max-w-full items-center gap-1.5 text-fg-2 font-semibold">
+                <svg viewBox="0 0 24 24" className={`shrink-0 w-3 h-3 text-fg-4 ${isOpen ? 'rotate-90' : ''}`} style={{ transition: 'transform var(--dur-fast) var(--ease-out)' }} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 6 6 6-6 6" /></svg>
+                <span className="truncate">{cat}</span>
               </button>,
               cat, cat, null, (c) => c.byCat.get(cat) ?? ZERO,
             );
             if (!isOpen) return [head];
             return [head, ...subsOf(cat).map((sub) =>
-              row(<span className="pl-5 text-fg-3">{sub}</span>, subKey(cat, sub), cat, sub, (c) => c.bySub.get(subKey(cat, sub)) ?? ZERO))];
+              row(<span title={sub} className="block truncate pl-5 text-fg-3">{sub}</span>, subKey(cat, sub), cat, sub, (c) => c.bySub.get(subKey(cat, sub)) ?? ZERO))];
           })}
         </tbody>
       </table>

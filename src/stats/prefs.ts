@@ -7,7 +7,7 @@ export type ChartValue = 'pct' | 'count';
 export type ChartPrefs = { type: ChartType; value: ChartValue; hiddenCats: string[] };
 export const DEFAULT_CHART: ChartPrefs = { type: 'bar', value: 'pct', hiddenCats: [] };
 
-export type StatsTab = 'completion' | 'left';
+export type StatsTab = 'completion' | 'left' | 'objectives';
 /** The Completion tab's measure switch has no Unclassified option (spec §4.2); Left to do does (§4.3). */
 export type CompletionKind = Exclude<Kind, 'unclassified'>;
 export type ViewPrefs = { tab: StatsTab; completionKind: CompletionKind; leftKind: Kind; leftSort: LeftSort; leftHiddenCats: string[] };
@@ -32,7 +32,7 @@ export function parseChartPrefs(v: unknown): ChartPrefs {
 export function parseViewPrefs(v: unknown): ViewPrefs {
   const o = obj(v);
   return {
-    tab: pick(o.tab, ['completion', 'left'] as const, DEFAULT_VIEW.tab),
+    tab: pick(o.tab, ['completion', 'left', 'objectives'] as const, DEFAULT_VIEW.tab),
     completionKind: pick(o.completionKind, COMPLETION_KINDS, DEFAULT_VIEW.completionKind),
     leftKind: pick(o.leftKind, KINDS, DEFAULT_VIEW.leftKind),
     leftSort: pick(o.leftSort, LEFT_SORTS, DEFAULT_VIEW.leftSort),

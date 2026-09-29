@@ -151,3 +151,6 @@ body {
 *::-webkit-scrollbar-thumb { background: var(--color-fg-4); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
 *::-webkit-scrollbar-thumb:hover { background: var(--color-fg-2); background-clip: padding-box; }
 *::-webkit-scrollbar-corner { background: transparent; }
+/* Scrolls with wheel/touch/keys but draws no bar (Stats matrix + explorer). */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

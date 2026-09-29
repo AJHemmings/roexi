@@ -1,4 +1,4 @@
-// Lists the objectives behind the selected matrix cell (spec 2026-09-28 §4.2). Read-only.
+// Lists one character's objectives for a category, or Overall (Stats → Objectives). Read-only.
 import { useState } from 'react';
 import { Segmented } from '../ui';
 import { doneState } from '../roe/bitmap';
@@ -9,13 +9,13 @@ type Filter = 'all' | 'done' | 'left';
 
 export function Explorer({ char, title, entries }: { char: KnownChar | undefined; title: string; entries: CatalogEntry[] }) {
   const [filter, setFilter] = useState<Filter>('all');
-  if (!char) return <div className="p-4 text-[12px] text-fg-4">Pick a cell in the matrix to see its objectives.</div>;
+  if (!char) return <div className="p-4 text-[12px] text-fg-4">Pick a character to see its objectives.</div>;
   const rows = [...entries].sort((a, b) => a.n.localeCompare(b.n)).filter((e) => {
     const done = isCompleted(char, e.id);
     return filter === 'all' || (filter === 'done' ? done : !done);
   });
   return (
-    <div className="flex flex-col gap-2 min-w-0">
+    <div className="flex-1 min-h-0 flex flex-col gap-2 min-w-0">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[12px] font-bold text-fg-2 truncate">{char.name} · {title}</span>
         <Segmented<Filter> value={filter} onChange={setFilter} options={[{ v: 'all', label: 'All' }, { v: 'done', label: 'Done' }, { v: 'left', label: 'Left' }]} />
@@ -23,7 +23,7 @@ export function Explorer({ char, title, entries }: { char: KnownChar | undefined
       {rows.length === 0 ? (
         <div className="py-6 text-center text-[12px] text-fg-4">Nothing here.</div>
       ) : (
-        <ul className="flex flex-col divide-y divide-line rounded-lg border border-line bg-surface">
+        <ul className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col divide-y divide-line rounded-lg border border-line bg-surface">
           {rows.map((e) => {
             const st = isCompleted(char, e.id) ? 'done' : doneState(char, e.id) === 'unknown' ? 'unknown' : 'left';
             return (

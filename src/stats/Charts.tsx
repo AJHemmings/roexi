@@ -114,6 +114,33 @@ function Donut({ s, cats, value, colorOfCat }: { s: Series; cats: string[]; valu
   );
 }
 
+/** Compact window mode: plain horizontal % bars, one row per character under each category, so labels stay full size. */
+export function CompactBars({ series, cats }: { series: Series[]; cats: string[] }) {
+  if (series.length === 0) return <Hint text="No characters in scope." />;
+  if (cats.length === 0) return <Hint text="No categories selected. Turn some on above." />;
+  return (
+    <div className="flex flex-col gap-2.5" role="list" aria-label="Completion by category">
+      {cats.map((cat) => (
+        <div key={cat} role="listitem" className="flex flex-col gap-1">
+          <span className="text-[11px] font-semibold text-fg-2 truncate">{cat}</span>
+          {series.map((s) => {
+            const t = s.tallies.get(cat) ?? ZERO;
+            return (
+              <div key={s.name} className="flex items-center gap-2 text-[10px]" title={tip(s.name, cat, t)}>
+                <span className="w-16 shrink-0 truncate text-fg-3">{s.name}</span>
+                <div className="flex-1 h-1.5 rounded-full bg-field border border-line overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${fraction(t.done, t.total) * 100}%`, background: s.color }} />
+                </div>
+                <span className="w-8 shrink-0 text-right tabular-nums text-fg-3">{pctText(t)}</span>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function OverviewChart({ series, cats, allCats, type, value }: {
   series: Series[];
   /** The categories switched on, in display order. */
