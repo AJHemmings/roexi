@@ -1,4 +1,5 @@
-// Stats → Completion: overview chart on top, matrix + explorer below (spec 2026-09-28 §4.2).
+// Stats → Completion: overview chart on top, category matrix below (spec 2026-09-28 §4.2).
+// Clicking a matrix cell opens it in the Objectives tab.
 import { useMemo } from 'react';
 import { useStickyPersisted } from '../sticky';
 import { Segmented, Chip, HelpTip } from '../ui';
@@ -7,11 +8,11 @@ import { EVENT_HELP, UNCLASSIFIED_HELP } from '../roe/copy';
 import { parseChartPrefs, valueFor, DEFAULT_CHART, type ChartPrefs, type ChartType, type ChartValue, type CompletionKind } from '../stats/prefs';
 import { OverviewChart, CompactBars } from '../stats/Charts';
 import { useMode } from '../windowSize';
-
-const COMPACT_HELP = 'Switch view mode to regular for best experience.';
 import { Matrix, type Cell } from '../stats/Matrix';
 import type { Catalog } from '../roe/catalog';
 import type { KnownChar } from '../roe/types';
+
+const COMPACT_HELP = 'Switch view mode to regular for best experience.';
 
 const KIND_OPTIONS: { v: CompletionKind; label: string }[] = [
   { v: 'one-time', label: 'One-time' },
