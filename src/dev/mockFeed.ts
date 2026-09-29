@@ -1,6 +1,6 @@
 // Browser-only stand-in for six addons. Imported by main.tsx only when the app is not inside Tauri.
 // Four characters are "online" with a few active records; two are "offline" from a persisted snapshot.
-// roeadd/roecancel are answered like the game would: every 7th id is treated as locked (not accepted).
+// roeadd/roecancel are answered like the game would: every 7th id is not accepted (as if not unlocked yet).
 import { ingestLine, seedPersisted, setCommandSink } from '../bridge';
 
 const NAMES = ['Aldric', 'Brienne', 'Cassius', 'Delphine', 'Evander', 'Fiora'];

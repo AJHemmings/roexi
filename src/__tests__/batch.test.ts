@@ -84,7 +84,7 @@ describe('runAdd', () => {
     expect(getResults()[0].chars[0]).toMatchObject({ name: 'Delphine', status: 'no-response', added: [1], notAccepted: [] });
   });
 
-  it('marks refused ids as locked when the addon acked ok', async () => {
+  it('never writes a lock when the game ignores an add (only the game\'s own message may lock)', async () => {
     hello(41, 'Refusa');
     vi.advanceTimersByTime(200);
     setCommandSink((conn, line) => {
@@ -98,35 +98,8 @@ describe('runAdd', () => {
     await vi.advanceTimersByTimeAsync(200);
     await p;
     vi.advanceTimersByTime(200);
-    expect(known('Refusa').locked?.has(1)).toBe(true);
-  });
-
-  it('records no locks when the addon acked ok: false', async () => {
-    hello(43, 'Erred');
-    vi.advanceTimersByTime(200);
-    setCommandSink((conn, line) => {
-      const msg = JSON.parse(line) as { seq?: number };
-      setTimeout(() => {
-        ingestLine(conn, JSON.stringify({ t: 'seqack', seq: msg.seq, ok: false }));
-        ingestLine(conn, JSON.stringify({ t: 'roe', items: [] })); // game refused; addon also errored
-      }, 50);
-    });
-    const p = runAdd([known('Erred')], [1], byId);
-    await vi.advanceTimersByTimeAsync(200);
-    await p;
-    vi.advanceTimersByTime(200);
-    expect(known('Erred').locked?.has(1) ?? false).toBe(false);
-  });
-
-  it('does not mark anything when the addon never acked', async () => {
-    hello(42, 'Silent');
-    vi.advanceTimersByTime(200);
-    setCommandSink(() => {});
-    const p = runAdd([known('Silent')], [1], byId);
-    await vi.advanceTimersByTimeAsync(17_000);
-    await p;
-    vi.advanceTimersByTime(200);
-    expect(known('Silent').locked?.has(1) ?? false).toBe(false);
+    expect(getResults()[0].chars[0]).toMatchObject({ name: 'Refusa', notAccepted: [1] });
+    expect(known('Refusa').gameLocked?.size ?? 0).toBe(0);
   });
 });
 

@@ -26,8 +26,9 @@ export type Box = {
   activeAt?: number;
   donePages?: Record<number, number[]>;
   doneAt?: number;
-  /** Refused ids → refusedAt (ms). Write `{}` to clear; undefined means "no change" to schedulePersist. */
-  locked?: Record<number, number>;
+  /** Ids the game itself said this character can't undertake → when (ms). Filled only by the lock
+   * sensor (a later release); nothing guesses these. Write `{}` to clear; undefined = no change. */
+  gameLocked?: Record<number, number>;
   lastSeen: number;
 };
 
@@ -42,8 +43,9 @@ export type PersistedChar = {
   activeAt?: number;
   donePages?: Record<number, number[]>;
   doneAt?: number;
-  /** Refused ids → refusedAt (ms). Write `{}` to clear; undefined means "no change" to schedulePersist. */
-  locked?: Record<number, number>;
+  /** Ids the game itself said this character can't undertake → when (ms). Filled only by the lock
+   * sensor (a later release); nothing guesses these. Write `{}` to clear; undefined = no change. */
+  gameLocked?: Record<number, number>;
   savedAt: number;
 };
 
@@ -62,8 +64,8 @@ export type KnownChar = {
   doneIds: Set<number>;
   /** Page indices received; an id whose page (floor(id/1024)) is absent is UNKNOWN, not "not done". */
   donePagesKnown: Set<number>;
-  /** Objectives the game refused for this character: id → refusedAt (ms). "locked?" — evidence, not proof. */
-  locked?: Map<number, number>;
+  /** Ids the game itself said this character can't undertake → when (ms). Never guessed by the app. */
+  gameLocked?: Map<number, number>;
   savedAt?: number;
 };
 
@@ -80,6 +82,11 @@ export type CatalogEntry = {
   text?: string;
   auto?: boolean;
 };
+
+/** Fallback label used wherever a catalog entry has no category/subcategory. */
+export const UNCATEGORIZED = 'Uncategorized';
+export const catOf = (e: CatalogEntry): string => e.cat ?? UNCATEGORIZED;
+export const subOf = (e: CatalogEntry): string => e.sub ?? UNCATEGORIZED;
 
 export type RoeSet = {
   id: string;

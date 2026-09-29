@@ -7,7 +7,6 @@ import { LibrarySummary } from '../components/LibrarySummary';
 import { doneState } from '../roe/bitmap';
 import { formatProgress } from '../roe/format';
 import { showInRemaining } from '../roe/locks';
-import { relTime } from '../reltime';
 import type { Catalog } from '../roe/catalog';
 import type { KnownChar, CatalogEntry } from '../roe/types';
 
@@ -40,10 +39,7 @@ function ExpandedLibrary({ id, entry, scope }: { id: number; entry?: CatalogEntr
       {scope.map((c) => {
         const active = c.active.find((a) => a.id === id);
         const done = doneState(c, id);
-        const refusedAt = c.locked?.get(id);
-        const doneLabel = done === 'done' && entry?.repeat === false ? 'completed'
-          : refusedAt != null ? `locked? · refused ${relTime(refusedAt)}`
-          : done === 'done' ? 'completed'
+        const doneLabel = done === 'done' ? 'completed'
           : done === 'unknown' ? 'completion unknown' : 'not completed';
         return (
           <div key={c.name} className="flex items-center gap-2">

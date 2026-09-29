@@ -45,6 +45,15 @@
   --ok-bg:       rgba(6, 78, 59, 0.40);
   --ok-border:   rgba(16, 185, 129, 0.30);
 
+  /* Stats chart series: one per character (up to 6). All four themes are dark, and these stay
+     distinct and readable on every theme's surfaces. */
+  --series-1: #e0b85c;
+  --series-2: #6cb6ff;
+  --series-3: #f47e7e;
+  --series-4: #6ee7b7;
+  --series-5: #c792ea;
+  --series-6: #f5a25d;
+
   --dur-instant: 90ms;
   --dur-fast:    140ms;
   --dur-base:    200ms;
@@ -142,3 +151,6 @@ body {
 *::-webkit-scrollbar-thumb { background: var(--color-fg-4); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
 *::-webkit-scrollbar-thumb:hover { background: var(--color-fg-2); background-clip: padding-box; }
 *::-webkit-scrollbar-corner { background: transparent; }
+/* Scrolls with wheel/touch/keys but draws no bar (Stats matrix + explorer). */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

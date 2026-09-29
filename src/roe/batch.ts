@@ -1,5 +1,5 @@
 // Turns a plan into real addon commands and a result card. Spec §8.6.
-import { nextSeq, sendBoxCommand, awaitSeqAck, waitForRoeFrame, getBoxActiveIds, recordRefusals, type SeqAck } from '../bridge';
+import { nextSeq, sendBoxCommand, awaitSeqAck, waitForRoeFrame, getBoxActiveIds, type SeqAck } from '../bridge';
 import { buildAddPlan, buildRemovePlan, type AddPlan, type RemovePlan } from './plan';
 import { diffAddResult, diffRemoveResult } from './diff';
 import { pushAddResult, pushRemoveResult, type AckStatus, type AddCharResult, type RemoveCharResult } from './results';
@@ -51,12 +51,6 @@ async function runOneAdd(plan: AddPlan, targets: KnownChar[]): Promise<AddCharRe
   const conn = targets.find((t) => t.name === plan.name)!.conn!;
   const { status, afterActiveIds } = await sendAndSettle(conn, 'roeadd', plan.send);
   const { landed, notAccepted } = diffAddResult(plan, afterActiveIds);
-  // Spec §2 rule 1: only an acked batch is trustworthy evidence that the game said no.
-  // Note: waitForRoeFrame can resolve on the 0x111 triggered by the *first* injection in a
-  // multi-id add, so the last ids may still show as "not accepted" here and get briefly marked
-  // locked; the next 0x111 clears them via applyFrame's self-correct (unlock). Don't "fix" this
-  // by removing that self-correct - it's what keeps a transient false mark from sticking.
-  if (status === 'ok') recordRefusals(conn, plan.name, notAccepted, Date.now());
   return { ...base, status, added: landed, notAccepted };
 }
 

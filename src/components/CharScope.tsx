@@ -1,9 +1,11 @@
+import { useMemo } from 'react';
 import { useStickyPersisted } from '../sticky';
 import { useKnownCharacters } from '../bridge';
 import { Select } from '../ui';
 import type { KnownChar } from '../roe/types';
 
-const STICKY_KEY = 'records.scope.v2';
+/** Each page remembers its own character pick: choosing a character on Stats doesn't change Records. */
+export const SCOPE_KEYS = { records: 'records.scope.v2', stats: 'stats.scope' } as const;
 
 /** Sentinel Select value for "All" — Select's value type is a plain string, so null (the real
  * "All" sentinel used everywhere else in this hook) can't be handed to it directly. No real
@@ -25,10 +27,11 @@ export function resolveScope(selected: string | null, known: KnownChar[]): Known
  * value — a character connecting later must still be included in "All" — so it is never eagerly
  * resolved into a snapshot at mount.
  */
-export function useCharScope(): { known: KnownChar[]; scope: KnownChar[]; charSelected: string | null; setCharSelected: (v: string | null) => void } {
+export function useCharScope(storageKey: string = SCOPE_KEYS.records): { known: KnownChar[]; scope: KnownChar[]; charSelected: string | null; setCharSelected: (v: string | null) => void } {
   const known = useKnownCharacters();
-  const [charSelected, setCharSelected] = useStickyPersisted<string | null>(STICKY_KEY, null);
-  return { known, scope: resolveScope(charSelected, known), charSelected, setCharSelected };
+  const [charSelected, setCharSelected] = useStickyPersisted<string | null>(storageKey, null);
+  const scope = useMemo(() => resolveScope(charSelected, known), [charSelected, known]);
+  return { known, scope, charSelected, setCharSelected };
 }
 
 /**
@@ -36,7 +39,7 @@ export function useCharScope(): { known: KnownChar[]; scope: KnownChar[]; charSe
  * CharScopeBar did: useStickyPersisted's state is per-hook-instance local React state, not a
  * shared external store, so a second independent call here would desync from whatever called
  * useCharScope() to get `scope` for the tabs below. There must be exactly one useCharScope() call
- * per screen.
+ * per screen (each screen passes its own key).
  */
 export function CharScopeSelect({ known, charSelected, setCharSelected }: { known: KnownChar[]; charSelected: string | null; setCharSelected: (v: string | null) => void }) {
   if (known.length === 0) return null;
