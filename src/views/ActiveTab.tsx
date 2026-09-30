@@ -57,7 +57,7 @@ function ExpandedActive({ id, scope, entry, byId }: { id: number; scope: KnownCh
   );
 }
 
-export default function ActiveTab({ known, scope, charSelected, byId, query, selected, onToggle, clearSelected }: {
+export default function ActiveTab({ known, scope, charSelected, byId, query, selected, onToggle, onClearSelected }: {
   known: KnownChar[];
   scope: KnownChar[];
   charSelected: string | null;
@@ -65,7 +65,7 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
   query: string;
   selected: number[];
   onToggle: (id: number) => void;
-  clearSelected: () => void;
+  onClearSelected: () => void;
 }) {
   const [rowRemoveId, setRowRemoveId] = useState<number | null>(null);
   const [rowAddId, setRowAddId] = useState<number | null>(null);
@@ -106,7 +106,7 @@ export default function ActiveTab({ known, scope, charSelected, byId, query, sel
               partial={scope.length > 1 && count < scope.length}
               chips={isIdPending(pending, id) ? <Spinner className="w-3 h-3 text-fg-4" /> : undefined}
               actions={<RowMenu id={id} known={known} charSelected={charSelected} selectedIds={selected} byId={byId}
-                onOpenRemovePicker={() => setRowRemoveId(id)} onOpenAddPicker={() => setRowAddId(id)} onClearSelected={clearSelected} />}
+                onOpenRemovePicker={() => setRowRemoveId(id)} onOpenAddPicker={() => setRowAddId(id)} onClearSelected={onClearSelected} />}
               expanded={<ExpandedActive id={id} scope={scope} entry={entry} byId={byId} />} />
           );
         })}

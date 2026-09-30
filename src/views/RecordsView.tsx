@@ -61,7 +61,7 @@ export default function RecordsView() {
         <ResultCards byId={catalog.byId} />
         {tab === 'active'
           ? <ActiveTab known={known} scope={scope} charSelected={charSelected} byId={catalog.byId} query={query}
-              selected={activeSel} onToggle={toggle} clearSelected={() => setActiveSel([])} />
+              selected={activeSel} onToggle={toggle} onClearSelected={() => setActiveSel([])} />
           : <LibraryTab catalog={catalog} scope={scope} query={query} selected={librarySel} onToggle={toggle} remaining={remaining} />}
       </div>
       <ActionBar known={scope} selectedIds={selected} byId={catalog.byId} showRemove={tab === 'active'}
