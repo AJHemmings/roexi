@@ -60,6 +60,7 @@ const ALIAS_PAIRS: [string, string][] = [
   ['heal 300 hp vbd', 'heal 300 damage vbd'],
   ['asquire hallmarks vb', 'obtain hallmarks vb'],
   ['receive damage vb', 'damage received vb'],
+  ['north gustaberg uc', 'conflict north gustaberg uc'],
 ];
 export const ALIASES: Map<string, string> = new Map(
   ALIAS_PAIRS.map(([w, c]): [string, string] => [normalizeName(w), normalizeName(c)]),
@@ -75,6 +76,8 @@ export const FALLBACK: FallbackRule[] = [
   [/^treasures of aht urhgan/i, 'Tutorial', 'Missions (Aht Urhgan)', false],
   [/^wings of the goddess/i, 'Tutorial', 'Missions (Altana)', false],
   [/^seekers of adoulin/i, 'Tutorial', 'Missions (Adoulin)', false],
+  // No source lists it; filed beside Mentor License (1060), the objective it unlocks.
+  [/^mentor license unlock$/i, 'Tutorial', 'Intermediate', false],
   [/\(uc\)$/i, 'Unity', 'Unity'],
   [/\(vbd\)$/i, 'Special Events', "Vana'bout Daily"],
   [/\(vb\)$/i, 'Special Events', "Vana'bout Round"],
