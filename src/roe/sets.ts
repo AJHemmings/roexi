@@ -27,6 +27,8 @@ export function isValidSet(x: unknown): x is RoeSet {
 
 let sets: RoeSet[] = [];
 let started = false;
+// False until the disk read settles, so SetsView can tell "still loading" from "no sets saved".
+let loaded = !inTauri;
 // Mirrors settings.ts: guards the async disk read in load() from clobbering a change made before
 // it resolves.
 let touched = false;
@@ -41,7 +43,8 @@ async function load() {
     const raw: unknown = JSON.parse(await invoke<string>('read_text_file', { path: await appDataPath('sets.json') }));
     if (!touched && Array.isArray(raw)) sets = raw.filter(isValidSet);
   } catch { /* none saved */ }
-  if (!touched) notify();
+  loaded = true;
+  notify();
 }
 void load();
 
@@ -58,8 +61,20 @@ async function save() {
 
 function commit(next: RoeSet[]) { touched = true; sets = next; notify(); void save(); }
 
+const subscribe = (cb: () => void) => { subs.add(cb); return () => { subs.delete(cb); }; };
+
 export function useSets(): RoeSet[] {
-  return useSyncExternalStore((cb) => { subs.add(cb); return () => subs.delete(cb); }, () => sets, () => sets);
+  return useSyncExternalStore(subscribe, () => sets, () => sets);
+}
+
+// Boolean snapshots: React only re-renders a subscriber when the value actually flips, so every
+// Active tab row can ask "any sets?" without re-rendering on each set edit.
+export function useHasSets(): boolean {
+  return useSyncExternalStore(subscribe, () => sets.length > 0, () => sets.length > 0);
+}
+
+export function useSetsLoaded(): boolean {
+  return useSyncExternalStore(subscribe, () => loaded, () => loaded);
 }
 
 // Callers must validate with validateSetName() first — this trusts the name is already valid,

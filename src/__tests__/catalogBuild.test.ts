@@ -128,6 +128,19 @@ describe('joinSources', () => {
     const { entries } = joinSources([{ id: 5, n: 'Spoils (Red Chip)' }], []);
     expect(entries[0].repeat).toBeUndefined();
   });
+
+  it('matches the Ayame North Gustaberg row the wiki lists without its Conflict: prefix', () => {
+    const { entries, report } = joinSources([{ id: 3509, n: 'Conflict: North Gustaberg (UC)' }],
+      [row('North Gustaberg (UC)', 'Unity', 'Unity (Ayame)', { goal: 10 })]);
+    expect(entries[0]).toMatchObject({ cat: 'Unity', sub: 'Unity (Ayame)', goal: 10 });
+    expect(report.exact).toBe(1);
+    expect(report.unmatchedWiki).toEqual([]);
+  });
+
+  it('files Mentor License Unlock beside Mentor License as a one-time objective', () => {
+    const { entries } = joinSources([{ id: 4053, n: 'Mentor License Unlock' }], []);
+    expect(entries[0]).toMatchObject({ cat: 'Tutorial', sub: 'Intermediate', repeat: false });
+  });
 });
 
 describe('isTypoPair', () => {

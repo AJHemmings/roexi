@@ -21,7 +21,7 @@ function SelectedList({ ids, byId }: { ids: number[]; byId: Map<number, CatalogE
 /** Autofocused name + inline validation, used by both the ActionBar's "Save to set" and RowMenu's
  * copy of the same action. `ids` is the objective-id selection being saved; `onSaved` lets each
  * caller wire its own selection-clearing behavior (ActionBar already has `onClear` in scope,
- * RowMenu's caller uses a `clearSelected` prop — see ActiveTab). */
+ * RowMenu's caller uses an `onClearSelected` prop — see ActiveTab). */
 export function CreateSetModal({ ids, byId, onSaved, onClose }: { ids: number[]; byId: Map<number, CatalogEntry>; onSaved: () => void; onClose: () => void }) {
   const sets = useSets();
   const [name, setName] = useState('');
@@ -30,7 +30,7 @@ export function CreateSetModal({ ids, byId, onSaved, onClose }: { ids: number[];
   return (
     <Modal onClose={onClose}>
       {(close) => (
-        <form onSubmit={(e) => { e.preventDefault(); if (!name || validateSetName(sets, name)) return; createSet(name, ids); onSaved(); close(); }}
+        <form onSubmit={(e) => { e.preventDefault(); if (!name || error) return; createSet(name, ids); onSaved(); close(); }}
           className="p-4 flex flex-col gap-3">
           <div className="text-[13px] font-bold text-fg">Create new set <span className="font-semibold text-fg-4">· {ids.length} objective{ids.length === 1 ? '' : 's'}</span></div>
           <SelectedList ids={ids} byId={byId} />
@@ -39,7 +39,7 @@ export function CreateSetModal({ ids, byId, onSaved, onClose }: { ids: number[];
           {error && <div className="text-[11px] text-red-300/90">{error}</div>}
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={close} className="le-tap px-3 py-1.5 text-[12px] font-semibold rounded-md border border-line bg-field text-fg-3 hover:text-fg-2 transition-colors">Cancel</button>
-            <button type="submit" disabled={!name || !!validateSetName(sets, name)}
+            <button type="submit" disabled={!name || !!error}
               className="le-tap px-3 py-1.5 text-[12px] font-bold rounded-md bg-accent text-on-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Save</button>
           </div>
         </form>
