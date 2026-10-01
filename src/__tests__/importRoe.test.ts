@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseRoeProfiles, sameIds, findMatches, uniqueName, planImport } from '../roe/importRoe';
+import { parseRoeProfiles, sameIds, findMatches, uniqueName, planImport, validateImport, buildImportedSets, type ImportRow } from '../roe/importRoe';
 import type { RoeSet } from '../roe/types';
 import { SAMPLE_ROE_SETTINGS } from '../dev/sampleRoeSettings';
 
@@ -92,5 +92,98 @@ describe('planImport', () => {
   it('copies ids so editing a row never mutates the parsed profile', () => {
     const r = row('ambu');
     expect(r.ids).not.toBe(r.profile.ids);
+  });
+});
+
+describe('validateImport / buildImportedSets', () => {
+  // Alpha shares 2 ids with the "alpha" profile and Bravo shares 1, so Alpha is the default target.
+  // planImport names the alpha profile "alpha (2)", since "Alpha" is taken (case-insensitive).
+  const A = set('a', 'Alpha', [1, 2, 3]);
+  const B = set('b', 'Bravo', [4]);
+  const sets = [A, B];
+  const base = () => planImport(sets, [{ name: 'alpha', ids: [2, 3, 4] }, { name: 'beta', ids: [9] }]);
+  const withRow = (key: string, patch: Partial<ImportRow>) => base().map((r) => (r.key === key ? { ...r, ...patch } : r));
+  const build = (rows: ImportRow[], edits = {}) => { let n = 0; return buildImportedSets(sets, rows, edits, 100, () => `n${++n}`); };
+
+  it('defaults are valid: Keep both + Import creates two sets and leaves the rest alone', () => {
+    const rows = base();
+    expect(rows[0]).toMatchObject({ choice: 'keepBoth', targetId: 'a', name: 'alpha (2)' });
+    expect(validateImport(sets, rows, {})).toEqual({ rowErrors: {}, existingErrors: {}, count: 2, ok: true });
+    const out = build(rows);
+    expect(out[0]).toBe(A);
+    expect(out[1]).toBe(B);
+    expect(out.slice(2)).toEqual([
+      { id: 'n1', name: 'alpha (2)', ids: [2, 3, 4], createdAt: 100, updatedAt: 100 },
+      { id: 'n2', name: 'beta', ids: [9], createdAt: 100, updatedAt: 100 },
+    ]);
+  });
+
+  it('Keep imported replaces the target ids, keeps its id and history, and takes its edited name', () => {
+    const rows = withRow('alpha', { choice: 'keepImported' });
+    const edits = { a: { name: 'Alpha v2', ids: [1, 2, 3] } };
+    expect(validateImport(sets, rows, edits)).toMatchObject({ ok: true, count: 2 });
+    const out = build(rows, edits);
+    expect(out[0]).toEqual({ id: 'a', name: 'Alpha v2', ids: [2, 3, 4], createdAt: 0, updatedAt: 100 });
+    expect(out).toHaveLength(3); // Alpha (replaced), Bravo, new beta
+  });
+
+  it('Keep both can rename and trim the existing set too', () => {
+    const rows = withRow('alpha', { name: 'Alpha' });
+    const edits = { a: { name: 'Alpha old', ids: [1, 2] } };
+    expect(validateImport(sets, rows, edits)).toMatchObject({ ok: true, count: 3 });
+    const out = build(rows, edits);
+    expect(out[0]).toMatchObject({ id: 'a', name: 'Alpha old', ids: [1, 2], updatedAt: 100 });
+    expect(out[2]).toMatchObject({ name: 'Alpha', ids: [2, 3, 4] });
+  });
+
+  it('Keep existing imports nothing for that row', () => {
+    const rows = withRow('alpha', { choice: 'keepExisting' });
+    expect(validateImport(sets, rows, {})).toMatchObject({ ok: true, count: 1 });
+    expect(build(rows).map((s) => s.name)).toEqual(['Alpha', 'Bravo', 'beta']);
+  });
+
+  it('ignores edits to a set the row no longer targets', () => {
+    const rows = withRow('alpha', { targetId: 'b' }); // user edited Alpha, then switched the Compare tab to Bravo
+    const edits = { a: { name: 'Edited', ids: [1] } };
+    expect(validateImport(sets, rows, edits).count).toBe(2);
+    expect(build(rows, edits)[0]).toBe(A);
+  });
+
+  it('flags a new name that clashes with an untouched existing set, on the row only', () => {
+    const v = validateImport(sets, withRow('alpha', { name: 'ALPHA' }), {});
+    expect(v.rowErrors).toEqual({ alpha: 'A set with this name already exists' });
+    expect(v.existingErrors).toEqual({});
+    expect(v.ok).toBe(false);
+  });
+
+  it('flags two rows given the same name', () => {
+    const v = validateImport(sets, withRow('beta', { name: 'alpha (2)' }), {});
+    expect(v.rowErrors).toEqual({ alpha: 'A set with this name already exists', beta: 'A set with this name already exists' });
+  });
+
+  it('flags a renamed existing set that clashes with a new one', () => {
+    const v = validateImport(sets, base(), { a: { name: 'Alpha (2)', ids: [1, 2, 3] } });
+    expect(v.existingErrors).toEqual({ a: 'A set with this name already exists' });
+    expect(v.rowErrors).toEqual({ alpha: 'A set with this name already exists' });
+  });
+
+  it('allows an existing set to keep its own name', () => {
+    expect(validateImport(sets, base(), { a: { name: 'Alpha', ids: [1, 2] } }).ok).toBe(true);
+  });
+
+  it('requires a name and at least one objective', () => {
+    expect(validateImport(sets, withRow('beta', { name: '  ' }), {}).rowErrors).toEqual({ beta: 'Name is required' });
+    expect(validateImport(sets, withRow('beta', { ids: [] }), {}).rowErrors).toEqual({ beta: 'A set needs at least one objective' });
+    expect(validateImport(sets, withRow('alpha', { choice: 'keepImported', ids: [] }), {}).existingErrors).toEqual({ a: 'A set needs at least one objective' });
+  });
+
+  it('flags a second row replacing the same set', () => {
+    const rows = base().map((r) => ({ ...r, choice: 'keepImported' as const, targetId: 'a' }));
+    expect(validateImport(sets, rows, {}).rowErrors).toEqual({ beta: 'Another profile already replaces this set' });
+  });
+
+  it('counts nothing when every row is skipped', () => {
+    const rows = base().map((r) => ({ ...r, choice: (r.matches.length ? 'keepExisting' : 'skip') as ImportRow['choice'] }));
+    expect(validateImport(sets, rows, {})).toMatchObject({ ok: true, count: 0 });
   });
 });

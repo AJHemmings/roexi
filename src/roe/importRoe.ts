@@ -86,3 +86,75 @@ export function planImport(sets: RoeSet[], profiles: RoeProfile[]): ImportRow[] 
     return { key: profile.name, profile, matches, choice, targetId: (same ?? matches[0])?.set.id ?? null, name, ids: [...profile.ids] };
   });
 }
+
+type ResolvedExisting = { set: RoeSet; name: string; ids: number[]; changed: boolean };
+type ResolvedCreate = { key: string; name: string; ids: number[] };
+
+// The single source of truth for what an import will produce. An existing set's edits only count
+// while some row still keeps or replaces it — edit Alpha, switch the Compare tab to Bravo, and
+// Alpha's edits drop out rather than being saved invisibly.
+function resolveImport(sets: RoeSet[], rows: ImportRow[], edits: ExistingEdits): { existing: ResolvedExisting[]; creates: ResolvedCreate[] } {
+  const existing = sets.map((s) => {
+    const replacer = rows.find((r) => r.choice === 'keepImported' && r.targetId === s.id);
+    const kept = rows.some((r) => r.targetId === s.id && (r.choice === 'keepBoth' || r.choice === 'keepExisting'));
+    const edit = edits[s.id];
+    let name = s.name;
+    let ids = s.ids;
+    if (replacer) { ids = replacer.ids; if (edit) name = edit.name; }
+    else if (kept && edit) { name = edit.name; ids = edit.ids; }
+    const changed = name.trim() !== s.name || ids.length !== s.ids.length || ids.some((x, i) => x !== s.ids[i]);
+    return { set: s, name, ids, changed };
+  });
+  const creates = rows
+    .filter((r) => r.choice === 'import' || r.choice === 'keepBoth')
+    .map((r) => ({ key: r.key, name: r.name, ids: r.ids }));
+  return { existing, creates };
+}
+
+export type ImportValidation = {
+  rowErrors: Record<string, string>; // by row key — errors on the new set a row creates
+  existingErrors: Record<string, string>; // by set id — errors on an existing set being edited/replaced
+  count: number; // sets created + existing sets changed; drives "Import N sets"
+  ok: boolean;
+};
+
+// Same name rule as validateSetName (trimmed, case-insensitive, unique), but checked across the
+// final state — existing sets as edited plus every set being created — since a rename on one row
+// can clash with a new set on another. Untouched existing sets are never flagged: they were already
+// valid, and the clashing new set carries the error the user can actually fix.
+export function validateImport(sets: RoeSet[], rows: ImportRow[], edits: ExistingEdits): ImportValidation {
+  const { existing, creates } = resolveImport(sets, rows, edits);
+  const rowErrors: Record<string, string> = {};
+  const existingErrors: Record<string, string> = {};
+  const all = [
+    ...existing.map((e) => ({ errs: existingErrors, id: e.set.id, name: e.name.trim(), ids: e.ids, check: e.changed })),
+    ...creates.map((c) => ({ errs: rowErrors, id: c.key, name: c.name.trim(), ids: c.ids, check: true })),
+  ];
+  const seen = new Map<string, number>();
+  for (const x of all) seen.set(x.name.toLowerCase(), (seen.get(x.name.toLowerCase()) ?? 0) + 1);
+  for (const x of all) {
+    if (!x.check) continue;
+    if (!x.name) x.errs[x.id] ??= 'Name is required';
+    else if (seen.get(x.name.toLowerCase())! > 1) x.errs[x.id] ??= 'A set with this name already exists';
+    if (x.ids.length === 0) x.errs[x.id] ??= 'A set needs at least one objective';
+  }
+  const claimed = new Set<string>();
+  for (const r of rows) {
+    if (r.choice !== 'keepImported' || !r.targetId) continue;
+    if (claimed.has(r.targetId)) rowErrors[r.key] ??= 'Another profile already replaces this set';
+    claimed.add(r.targetId);
+  }
+  const count = creates.length + existing.filter((e) => e.changed).length;
+  return { rowErrors, existingErrors, count, ok: Object.keys(rowErrors).length === 0 && Object.keys(existingErrors).length === 0 };
+}
+
+// The full next sets array, for one replaceAllSets() call. Unchanged sets are returned as the same
+// objects; changed ones keep id, createdAt and lastAppliedAt. now/makeId are injected so tests are
+// deterministic.
+export function buildImportedSets(sets: RoeSet[], rows: ImportRow[], edits: ExistingEdits, now: number, makeId: () => string): RoeSet[] {
+  const { existing, creates } = resolveImport(sets, rows, edits);
+  return [
+    ...existing.map((e) => (e.changed ? { ...e.set, name: e.name.trim(), ids: [...e.ids], updatedAt: now } : e.set)),
+    ...creates.map((c) => ({ id: makeId(), name: c.name.trim(), ids: [...c.ids], createdAt: now, updatedAt: now })),
+  ];
+}
