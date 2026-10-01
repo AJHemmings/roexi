@@ -100,3 +100,9 @@ export function deleteSet(id: string): void {
 export function markApplied(id: string): void {
   commit(sets.map((s) => (s.id === id ? { ...s, lastAppliedAt: Date.now() } : s)));
 }
+
+// Import writes everything in one go, so a half-finished import never lands on disk and the view
+// re-renders once. The caller builds `next` with buildImportedSets (src/roe/importRoe.ts).
+export function replaceAllSets(next: RoeSet[]): void {
+  commit(next);
+}
