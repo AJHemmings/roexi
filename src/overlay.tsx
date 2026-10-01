@@ -4,7 +4,11 @@ import { AnimatePresence, motion } from 'motion/react';
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 
-export function Modal({ onClose, children, panelClass = 'w-full max-w-[460px] max-h-[88%]', backdropClose = true }: { onClose: () => void; children: ReactNode | ((close: () => void) => ReactNode); panelClass?: string; backdropClose?: boolean }) {
+// panelClass caps height against the window (vh), not the parent (%): the backdrop is a grid whose
+// row grows with its content, so a % max-height never binds. 2rem = the backdrop's p-4, top + bottom.
+// The panel scrolls as a whole if its content is taller; modals with their own scrolling body (e.g.
+// ImportRoeModal) fill the cap exactly and never trigger it.
+export function Modal({ onClose, children, panelClass = 'w-full max-w-[460px] max-h-[calc(100vh-2rem)]', backdropClose = true }: { onClose: () => void; children: ReactNode | ((close: () => void) => ReactNode); panelClass?: string; backdropClose?: boolean }) {
   const [open, setOpen] = useState(true);
   const close = useCallback(() => setOpen(false), []);
   useEffect(() => {
@@ -16,7 +20,7 @@ export function Modal({ onClose, children, panelClass = 'w-full max-w-[460px] ma
     <AnimatePresence onExitComplete={onClose}>
       {open && (
         <motion.div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }} onClick={backdropClose ? close : undefined}>
-          <motion.div className={`rounded-xl border border-line bg-surface-raised shadow-xl flex flex-col ${panelClass}`} initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }} transition={{ duration: 0.2, ease: EASE_OUT }} onClick={(e) => e.stopPropagation()}>
+          <motion.div className={`rounded-xl border border-line bg-surface-raised shadow-xl flex flex-col overflow-y-auto ${panelClass}`} initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }} transition={{ duration: 0.2, ease: EASE_OUT }} onClick={(e) => e.stopPropagation()}>
             {typeof children === 'function' ? children(close) : children}
           </motion.div>
         </motion.div>

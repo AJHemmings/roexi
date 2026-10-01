@@ -57,9 +57,7 @@ export function ImportRoeModal({ profiles, byId, onClose }: { profiles: RoeProfi
   const claimedByOther = (setId: string, key: string) => rows.some((r) => r.key !== key && r.choice === 'keepImported' && r.targetId === setId);
 
   return (
-    // Height is capped against the window (vh), not the parent (%): Modal's backdrop is a grid whose
-    // row grows with its content, so a % max-height never binds and the body would never scroll.
-    // 2rem = the backdrop's p-4 padding, top + bottom.
+    // Same height cap as Modal's default (see overlay.tsx); only the width differs.
     <Modal onClose={onClose} panelClass="w-full max-w-[580px] max-h-[calc(100vh-2rem)]">
       {(close) => (
         <>
