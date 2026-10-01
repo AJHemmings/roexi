@@ -32,7 +32,9 @@ function IdGroup({ title, ids, byId }: { title: string; ids: number[]; byId: Map
     <div className="flex flex-col gap-1 min-w-0">
       <div className="text-[11px] font-semibold text-fg-3">{title} <span className="tabular-nums text-fg-4">({ids.length})</span></div>
       <div className="flex flex-col gap-0.5 max-h-28 overflow-y-auto">
-        {ids.map((id) => <div key={id} className="text-[11px] text-fg-2 truncate">{byId.get(id)?.n ?? `Unknown #${id}`}</div>)}
+        {/* shrink-0: without it, flex squeezes every row shorter to fit max-h instead of scrolling,
+            and truncate's overflow:hidden lets the rows overlap. */}
+        {ids.map((id) => <div key={id} className="shrink-0 text-[11px] text-fg-2 truncate" title={byId.get(id)?.n}>{byId.get(id)?.n ?? `Unknown #${id}`}</div>)}
         {ids.length === 0 && <div className="text-[11px] text-fg-4">None</div>}
       </div>
     </div>
@@ -55,7 +57,10 @@ export function ImportRoeModal({ profiles, byId, onClose }: { profiles: RoeProfi
   const claimedByOther = (setId: string, key: string) => rows.some((r) => r.key !== key && r.choice === 'keepImported' && r.targetId === setId);
 
   return (
-    <Modal onClose={onClose} panelClass="w-full max-w-[580px] max-h-[88%]">
+    // Height is capped against the window (vh), not the parent (%): Modal's backdrop is a grid whose
+    // row grows with its content, so a % max-height never binds and the body would never scroll.
+    // 2rem = the backdrop's p-4 padding, top + bottom.
+    <Modal onClose={onClose} panelClass="w-full max-w-[580px] max-h-[calc(100vh-2rem)]">
       {(close) => (
         <>
           <div className="p-4 pb-2 text-[13px] font-bold text-fg">Import roe profiles</div>
