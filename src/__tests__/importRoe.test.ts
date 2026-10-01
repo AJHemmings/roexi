@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseRoeProfiles, sameIds, findMatches, uniqueName } from '../roe/importRoe';
+import { parseRoeProfiles, sameIds, findMatches, uniqueName, planImport } from '../roe/importRoe';
 import type { RoeSet } from '../roe/types';
 import { SAMPLE_ROE_SETTINGS } from '../dev/sampleRoeSettings';
 
@@ -70,4 +70,27 @@ describe('uniqueName', () => {
   it('keeps a free name', () => { expect(uniqueName('ambu', ['monthly'])).toBe('ambu'); });
   it('suffixes a case-insensitive clash', () => { expect(uniqueName('ambu', ['Ambu'])).toBe('ambu (2)'); });
   it('skips suffixes that are taken too', () => { expect(uniqueName('ambu', ['ambu', 'AMBU (2)'])).toBe('ambu (3)'); });
+});
+
+describe('planImport', () => {
+  // "monthly" already imported unchanged; an unrelated set that happens to be called "ambu".
+  const existing = [set('m', 'monthly', idsOf('monthly')), set('x', 'ambu', [1])];
+  const row = (key: string) => planImport(existing, sample()).find((r) => r.key === key)!;
+
+  it('defaults identical ids to Keep existing, targeting that set', () => {
+    expect(row('monthly')).toMatchObject({ choice: 'keepExisting', targetId: 'm' });
+  });
+
+  it('defaults a partial match to Keep both and dodges the name clash', () => {
+    expect(row('ambu')).toMatchObject({ choice: 'keepBoth', targetId: 'm', name: 'ambu (2)', ids: [3760, 3758, 3998] });
+  });
+
+  it('defaults an unmatched profile to Import with no target', () => {
+    expect(row('vagary')).toMatchObject({ choice: 'import', targetId: null, name: 'vagary' });
+  });
+
+  it('copies ids so editing a row never mutates the parsed profile', () => {
+    const r = row('ambu');
+    expect(r.ids).not.toBe(r.profile.ids);
+  });
 });

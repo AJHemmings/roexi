@@ -53,3 +53,36 @@ export function uniqueName(base: string, taken: string[]): string {
     if (!lower.has(candidate.toLowerCase())) return candidate;
   }
 }
+
+// 'import' / 'skip' are for rows with no match; the other three for matched rows, relative to the
+// row's targetId (the existing set shown in its Compare tab).
+export type ImportChoice = 'import' | 'skip' | 'keepBoth' | 'keepImported' | 'keepExisting';
+
+// One preview row. name/ids are the imported set as the user has edited it. Edits to an *existing*
+// set live separately in ExistingEdits, keyed by set id, so two rows comparing against the same set
+// can't hold two conflicting copies of its name.
+export type ImportRow = {
+  key: string; // the profile name — unique within one settings.xml, since they're XML tag names
+  profile: RoeProfile;
+  matches: IdMatch[];
+  choice: ImportChoice;
+  targetId: string | null;
+  name: string;
+  ids: number[];
+};
+
+export type ExistingEdits = Record<string, { name: string; ids: number[] }>;
+
+// Safe defaults: identical ids → Keep existing (re-importing the same file changes nothing),
+// any other match → Keep both (nothing of the user's is overwritten unless they choose it).
+export function planImport(sets: RoeSet[], profiles: RoeProfile[]): ImportRow[] {
+  const taken = sets.map((s) => s.name);
+  return profiles.map((profile) => {
+    const matches = findMatches(sets, profile.ids);
+    const same = matches.find((m) => sameIds(m.set.ids, profile.ids));
+    const name = uniqueName(profile.name, taken);
+    taken.push(name);
+    const choice: ImportChoice = same ? 'keepExisting' : matches.length ? 'keepBoth' : 'import';
+    return { key: profile.name, profile, matches, choice, targetId: (same ?? matches[0])?.set.id ?? null, name, ids: [...profile.ids] };
+  });
+}
