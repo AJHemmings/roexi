@@ -9,6 +9,7 @@ import { ResultCards } from '../components/ResultCard';
 import { EditSetModal } from '../components/SetModals';
 import { relTime, useNowTick } from '../reltime';
 import { Spinner } from '../components/Spinner';
+import { ImportRoeButton } from '../components/ImportRoeButton';
 
 // At most one set action is open at a time: a picker, the edit modal, or the inline delete confirm.
 // One state value makes "two open at once" unrepresentable rather than something each click undoes.
@@ -38,7 +39,8 @@ export default function SetsView() {
       <div className="h-full grid place-items-center">
         <div className="text-center max-w-sm px-6">
           <div className="text-[15px] font-bold text-fg mb-1">No Sets Yet</div>
-          <div className="text-[12px] text-fg-4 leading-relaxed">Select objectives in Records and choose Save to set → Create new set.</div>
+          <div className="text-[12px] text-fg-4 leading-relaxed">Select objectives in Records and choose Save to set → Create new set, or import your profiles from the roe addon.</div>
+          <div className="mt-3"><ImportRoeButton /></div>
         </div>
       </div>
     );
@@ -51,6 +53,10 @@ export default function SetsView() {
 
   return (
     <div className="h-full overflow-y-auto p-3 flex flex-col gap-2">
+      <div className="flex items-center">
+        <span className="text-[11px] tabular-nums text-fg-4">{sets.length} set{sets.length === 1 ? '' : 's'}</span>
+        <div className="ml-auto"><ImportRoeButton /></div>
+      </div>
       <ResultCards byId={catalog.byId} />
       {sets.map((s) => (
         <div key={s.id} className="rounded-xl bg-surface border border-line p-3 flex flex-col gap-2">
