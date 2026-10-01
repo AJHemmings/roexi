@@ -18,6 +18,24 @@ function SelectedList({ ids, byId }: { ids: number[]; byId: Map<number, CatalogE
   );
 }
 
+/** Objective names with a × each to drop one. Remove-only by design: adding happens from Records.
+ * Shared by EditSetModal and the import preview's editors. */
+export function RemovableIdList({ ids, byId, onRemove, maxH = 'max-h-64' }: { ids: number[]; byId: Map<number, CatalogEntry>; onRemove: (id: number) => void; maxH?: string }) {
+  return (
+    <div className={`flex flex-col gap-1 ${maxH} overflow-y-auto`}>
+      {ids.map((id) => (
+        <div key={id} className="flex items-center gap-2 px-3 py-1.5 text-[12px] rounded-md bg-field border border-line">
+          <span className="flex-1 truncate text-fg-2">{byId.get(id)?.n ?? `Unknown #${id}`}</span>
+          <button type="button" onClick={() => onRemove(id)} aria-label="Remove from set" className="le-tap text-fg-4 hover:text-red-300">
+            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M6 6 18 18M18 6 6 18" /></svg>
+          </button>
+        </div>
+      ))}
+      {ids.length === 0 && <div className="text-[11px] text-fg-4 text-center py-2">No objectives left in this set.</div>}
+    </div>
+  );
+}
+
 /** Autofocused name + inline validation, used by both the ActionBar's "Save to set" and RowMenu's
  * copy of the same action. `ids` is the objective-id selection being saved; `onSaved` lets each
  * caller wire its own selection-clearing behavior (ActionBar already has `onClear` in scope,
@@ -103,17 +121,7 @@ export function EditSetModal({ set, byId, onClose }: { set: RoeSet; byId: Map<nu
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
             className="w-full px-3 py-2 text-[13px] rounded-md bg-field border border-line text-fg focus:outline-none focus:border-accent" />
           {error && <div className="text-[11px] text-red-300/90">{error}</div>}
-          <div className="flex flex-col gap-1 max-h-64 overflow-y-auto">
-            {ids.map((id) => (
-              <div key={id} className="flex items-center gap-2 px-3 py-1.5 text-[12px] rounded-md bg-field border border-line">
-                <span className="flex-1 truncate text-fg-2">{byId.get(id)?.n ?? `Unknown #${id}`}</span>
-                <button type="button" onClick={() => setIds((prev) => prev.filter((x) => x !== id))} aria-label="Remove from set" className="le-tap text-fg-4 hover:text-red-300">
-                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M6 6 18 18M18 6 6 18" /></svg>
-                </button>
-              </div>
-            ))}
-            {ids.length === 0 && <div className="text-[11px] text-fg-4 text-center py-2">No objectives left in this set.</div>}
-          </div>
+          <RemovableIdList ids={ids} byId={byId} onRemove={(id) => setIds((prev) => prev.filter((x) => x !== id))} />
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={close} className="le-tap px-3 py-1.5 text-[12px] font-semibold rounded-md border border-line bg-field text-fg-3 hover:text-fg-2 transition-colors">Cancel</button>
             <button type="submit" disabled={!name || !!error}
