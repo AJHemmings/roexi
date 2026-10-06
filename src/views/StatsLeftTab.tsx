@@ -1,56 +1,56 @@
 // Stats → Left to do: what's still takeable, ranked by reward, with Add (spec 2026-09-28 §4.3).
 import { useMemo, useState } from 'react';
-import { Segmented, Chip, HelpTip, Select } from '../ui';
+import { Chip, HelpTip, Select } from '../ui';
 import { ObjectiveRow } from '../components/ObjectiveRow';
 import { ActionBar } from '../components/ActionBar';
 import { ResultCards } from '../components/ResultCard';
 import { toggleId } from '../roe/selection';
 import { runAdd } from '../roe/batch';
 import { resolveTargets } from '../roe/targets';
-import { leftToDo, neededBy, sortLeft, categoriesFor, catOf, subOf, LEFT_SORTS, type Kind, type LeftSort } from '../roe/completion';
+import { leftToDo, neededBy, sortLeft, categoriesFor, unclassifiedCount, catOf, subOf, LEFT_SORTS, type Kind, type LeftSort } from '../roe/completion';
 import { EVENT_HELP, UNCLASSIFIED_HELP } from '../roe/copy';
+import { KindChips, COMPLETION_KIND_OPTIONS, type KindOption } from '../stats/KindChips';
 import type { Catalog } from '../roe/catalog';
 import type { KnownChar } from '../roe/types';
 
-const KIND_OPTIONS: { v: Kind; label: string }[] = [
-  { v: 'one-time', label: 'One-time' },
-  { v: 'repeatable', label: 'Repeatables' },
-  { v: 'event', label: 'Events' },
-  { v: 'unclassified', label: 'Unclassified' },
-];
 const SORT_LABEL: Record<LeftSort, string> = { sparks: 'Sort: Sparks', exp: 'Sort: Exp', category: 'Sort: Category', name: 'Sort: Name' };
 
-export default function StatsLeftTab({ scope, catalog, colorOf, kind, setKind, sort, setSort, hiddenCats, setHiddenCats }: {
+export default function StatsLeftTab({ scope, catalog, colorOf, kinds, setKinds, sort, setSort, hiddenCats, setHiddenCats }: {
   scope: KnownChar[];
   catalog: Catalog;
   colorOf: (name: string) => string;
-  kind: Kind;
-  setKind: (k: Kind) => void;
+  kinds: Kind[];
+  setKinds: (k: Kind[]) => void;
   sort: LeftSort;
   setSort: (s: LeftSort) => void;
   hiddenCats: string[];
   setHiddenCats: (c: string[]) => void;
 }) {
   const [selected, setSelected] = useState<number[]>([]);
-  const cats = useMemo(() => categoriesFor(catalog.entries, [kind]), [catalog, kind]);
+  const cats = useMemo(() => categoriesFor(catalog.entries, kinds), [catalog, kinds]);
   const list = useMemo(
-    () => sortLeft(leftToDo(scope, catalog.entries, catalog.byId, [kind]).filter((e) => !hiddenCats.includes(catOf(e))), sort),
-    [scope, catalog, kind, sort, hiddenCats],
+    () => sortLeft(leftToDo(scope, catalog.entries, catalog.byId, kinds).filter((e) => !hiddenCats.includes(catOf(e))), sort),
+    [scope, catalog, kinds, sort, hiddenCats],
   );
   const many = scope.length > 1;
   const clear = () => setSelected([]);
   const visibleIds = useMemo(() => new Set(list.map((e) => e.id)), [list]);
   const effective = selected.filter((id) => visibleIds.has(id));
   const who = useMemo(() => new Map(list.map((e) => [e.id, neededBy(scope, e.id, catalog.byId)])), [list, scope, catalog]);
+  const unclassified = useMemo(() => unclassifiedCount(catalog.entries), [catalog]);
+  // Unclassified is only offered while the catalog has any (none since the client table, spec 2026-10-06 §3.1).
+  const kindOptions: readonly KindOption<Kind>[] = unclassified > 0
+    ? [...COMPLETION_KIND_OPTIONS, { v: 'unclassified', label: 'Unclassified' }]
+    : COMPLETION_KIND_OPTIONS;
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-3 flex flex-col gap-2.5">
         <ResultCards byId={catalog.byId} />
         <div className="flex flex-wrap items-center gap-2">
-          <Segmented<Kind> value={kind} onChange={(k) => { setKind(k); clear(); }} options={KIND_OPTIONS} />
-          {kind === 'event' && <HelpTip text={EVENT_HELP} />}
-          {kind === 'unclassified' && <HelpTip text={UNCLASSIFIED_HELP} />}
+          <KindChips<Kind> value={kinds} onChange={(k) => { setKinds(k); clear(); }} options={kindOptions} />
+          {kinds.includes('event') && <HelpTip text={EVENT_HELP} />}
+          {unclassified > 0 && kinds.includes('unclassified') && <HelpTip text={UNCLASSIFIED_HELP} />}
           <div className="ml-auto w-[150px]">
             <Select full value={sort} onChange={(v) => setSort(v as LeftSort)} options={[...LEFT_SORTS]}
               renderOption={(v) => SORT_LABEL[v as LeftSort]} renderValue={(v) => SORT_LABEL[v as LeftSort]} />
