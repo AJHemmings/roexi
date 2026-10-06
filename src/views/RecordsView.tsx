@@ -57,7 +57,10 @@ export default function RecordsView() {
         <CharScopeSelect known={known} charSelected={charSelected} setCharSelected={setCharSelected} />
         <SectionTabs value={tab} onChange={setTab} tabs={[{ id: 'active', label: 'Active' }, { id: 'library', label: 'Library' }]} />
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-3">
+      {/* overflow-x-hidden: rows wrap to fit (ObjectiveRow), so nothing here needs sideways scrolling. Without
+          it, the invisible (opacity-0) Quick stats tooltips poking past the right edge gave the list a stray
+          horizontal scrollbar in narrow windows. */}
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 pb-3">
         <ResultCards byId={catalog.byId} />
         {tab === 'active'
           ? <ActiveTab known={known} scope={scope} charSelected={charSelected} byId={catalog.byId} query={query}
