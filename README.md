@@ -52,6 +52,17 @@ roexi is a desktop app for FFXI multiboxers to view and manage Records of Eminen
 </table>
 </details>
 
+<details>
+<summary><b>Stats</b>: completion by category, per character</summary>
+<br>
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/stats-completion.png" alt="Stats completion bar chart" /><br><em>Completion — every character side by side per category, with One-time, Repeatables and Events chips and Sections</em></td>
+    <td width="50%" align="center"><img src="docs/screenshots/stats-radar.png" alt="Stats radar chart" /><br><em>The same completion as a radar chart, one shape per character</em></td>
+  </tr>
+</table>
+</details>
+
 ## Download & Install
 
 Grab the latest build from the [**Releases**](https://github.com/AJHemmings/roexi/releases/latest) page. Two assets are provided:
