@@ -1,6 +1,6 @@
 _addon.name = 'roexi'
 _addon.author = 'Mak'
-_addon.version = '0.5.0-beta'
+_addon.version = '0.6.0-beta'
 _addon.commands = {'roexi'}
 
 local socket = require('socket')
