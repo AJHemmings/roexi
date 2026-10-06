@@ -21,21 +21,30 @@ export function ObjectiveRow({ id, entry, checkbox, checked, onToggle, countLabe
   expanded?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const name = entry?.n ?? `Unknown #${id}`;
+  const trailing = badges || chips || countLabel || actions;
   return (
     <div className={`border-l-2 ${partial ? 'border-l-amber-300/70' : 'border-l-transparent'}`}>
-      <div className="flex items-center gap-2 px-3.5 py-2.5">
+      {/* Wraps when narrow (spec 2026-10-06 §4): the name keeps at least 10rem (less only when the row
+          itself is narrower) and everything after it drops to a second line as one right-aligned group,
+          instead of the fixed-width chips and counts squeezing the name to nothing. */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3.5 py-2.5">
         {checkbox && (
-          <input type="checkbox" checked={checked} onChange={onToggle} aria-label={entry?.n ?? `Unknown #${id}`}
+          <input type="checkbox" checked={checked} onChange={onToggle} aria-label={name}
             className="w-4 h-4 shrink-0 accent-[var(--color-slider)]" />
         )}
-        <button type="button" onClick={() => setOpen((o) => !o)} className="le-tap flex-1 min-w-0 flex items-center gap-2 text-left">
-          <span className="text-[13px] text-fg-2 truncate">{entry?.n ?? `Unknown #${id}`}</span>
+        <button type="button" onClick={() => setOpen((o) => !o)} className="le-tap flex-1 min-w-[min(10rem,calc(100%_-_1.5rem))] flex items-center gap-2 text-left">
+          <span className="text-[13px] text-fg-2 truncate" title={name}>{name}</span>
           <svg viewBox="0 0 24 24" style={{ transition: 'transform var(--dur-fast) var(--ease-out)' }} className={`w-3.5 h-3.5 shrink-0 text-fg-4 ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
         </button>
-        {badges}
-        {chips}
-        {countLabel && <span className={`text-[11px] tabular-nums shrink-0 ${partial ? 'text-amber-300' : 'text-fg-4'}`}>{countLabel}</span>}
-        {actions}
+        {trailing && (
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2 min-w-0">
+            {badges}
+            {chips}
+            {countLabel && <span className={`text-[11px] tabular-nums shrink-0 ${partial ? 'text-amber-300' : 'text-fg-4'}`}>{countLabel}</span>}
+            {actions}
+          </div>
+        )}
       </div>
       {expanded && <Collapse open={open} className="px-3.5 pb-2.5">{expanded}</Collapse>}
     </div>
