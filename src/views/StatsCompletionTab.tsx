@@ -52,26 +52,31 @@ export default function StatsCompletionTab({ scope, catalog, colorOf, kinds, set
       </div>
 
       <section className="rounded-xl bg-surface border border-line p-3 flex flex-col gap-2.5">
-        {compact ? (
-          <span className="inline-flex items-center gap-1 text-[11px] text-fg-4">Compact view <HelpTip text={COMPACT_HELP} /></span>
-        ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            <Segmented<ChartType> value={chart.type} onChange={(type) => setChart({ type })}
-              options={[{ v: 'bar', label: 'Bar' }, { v: 'radar', label: 'Radar' }, { v: 'donut', label: 'Donut' }]} />
-            {chart.type === 'radar' ? (
-              <span className="inline-flex items-center gap-1 text-[11px] text-fg-4">% only <HelpTip text="Radar always shows %: categories differ in size, so counts can't share one scale." /></span>
-            ) : (
-              <Segmented<ChartValue> value={chart.value} onChange={(value) => setChart({ value })} options={[{ v: 'pct', label: '%' }, { v: 'count', label: 'Counts' }]} />
-            )}
+        <div className="flex flex-wrap items-center gap-2">
+          {compact ? (
+            <span className="inline-flex items-center gap-1 text-[11px] text-fg-4">Compact view <HelpTip text={COMPACT_HELP} /></span>
+          ) : (
+            <>
+              <Segmented<ChartType> value={chart.type} onChange={(type) => setChart({ type })}
+                options={[{ v: 'bar', label: 'Bar' }, { v: 'radar', label: 'Radar' }, { v: 'donut', label: 'Donut' }]} />
+              {chart.type === 'radar' ? (
+                <span className="inline-flex items-center gap-1 text-[11px] text-fg-4">% only <HelpTip text="Radar always shows %: categories differ in size, so counts can't share one scale." /></span>
+              ) : (
+                <Segmented<ChartValue> value={chart.value} onChange={(value) => setChart({ value })} options={[{ v: 'pct', label: '%' }, { v: 'count', label: 'Counts' }]} />
+              )}
+            </>
+          )}
+          {/* Styled as a one-option Segmented so it sits evenly beside the chart controls. */}
+          <div className="inline-flex rounded-lg bg-field border border-line p-0.5">
+            <button type="button" onClick={() => setSectionsOpen(true)}
+              className="le-tap px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-fg-3 hover:text-fg-2 transition-colors">Sections</button>
           </div>
-        )}
-        <div className="flex flex-wrap items-center gap-1.5">
+          {nHidden > 0 && <span className="text-[11px] text-fg-4">{nHidden} hidden</span>}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
           {allCats.map((cat) => (
             <Chip key={cat} on={categoryState(chart.hidden, cat) !== 'off'} onChange={(on) => setHidden(setCategoryShown(chart.hidden, cat, on))}>{cat}</Chip>
           ))}
-          <button type="button" onClick={() => setSectionsOpen(true)}
-            className="le-tap px-3 py-1.5 text-[11px] font-bold rounded-md border border-line bg-field text-fg-2 hover:text-fg transition-colors">Sections</button>
-          {nHidden > 0 && <span className="text-[11px] text-fg-4">{nHidden} hidden</span>}
         </div>
         {compact ? (
           <CompactBars series={series} cats={cats} />
