@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build:catalog": "node scripts/build-catalog.mjs",
+    "extract:client": "node scripts/extract-client.mjs",
     "addon:install": "node scripts/install-addon.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
