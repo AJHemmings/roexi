@@ -77,24 +77,36 @@ describe('joinSources', () => {
     expect(report.none).toBe(1);
   });
 
-  it('files Unity Wanted NMs into their three tiers by id and keeps the client repeat flag', () => {
-    const { entries } = joinSources([
-      ce(817, 'Subjugation: Hugemaw Harold (UC)', { repeat: true }),
-      ce(854, 'Subjugation: Sybaritic Samantha (UC)', { repeat: true }),
-      ce(855, 'Subj.: Keeper of Heiligtum (UC)', { repeat: true }),
-      ce(915, 'Subjugation: Hidhaegg (UC)', { repeat: true }),
-    ], [row('Subjugation: Hugemaw Harold (UC)', 'Unity', 'Unity (Wanted)')]);
-    expect(entries.map((e) => [e.id, e.cat, e.sub, e.repeat])).toEqual([
-      [817, 'Unity', 'Unity (Wanted I)', true],
-      [854, 'Unity', 'Unity (Wanted II)', true],
-      [855, 'Unity', 'Unity (Wanted II)', true],
-      [915, 'Unity', 'Unity (Wanted III)', true],
+  it('files everything the game\'s menu lists under the menu\'s own category and section', () => {
+    const { entries, report } = joinSources(
+      [ce(817, 'Subjugation: Hugemaw Harold (UC)', { repeat: true }), ce(915, 'Subjugation: Hidhaegg (UC)', { repeat: true }), ce(1069, 'Obtaining Ambuscade Armor')],
+      [row('Subjugation: Hugemaw Harold (UC)', 'Unity', 'Unity (Wanted)'), row('Obtaining Ambuscade Armor', 'Tutorial', 'Intermediate 2')],
+      [{ cat: 'Unity', sub: 'Unity (Wanted 1)', ids: [817, 915] }, { cat: 'Tutorial', sub: 'Intermediate 2', ids: [1069] }],
+    );
+    expect(entries.map((e) => [e.id, e.cat, e.sub, e.repeat, e.unlisted])).toEqual([
+      [817, 'Unity', 'Unity (Wanted 1)', true, undefined],
+      [915, 'Unity', 'Unity (Wanted 1)', true, undefined],
+      [1069, 'Tutorial', 'Intermediate 2', false, undefined],
+    ]);
+    expect(report.menuPlaced).toBe(3);
+  });
+
+  it('marks what the menu does not list right now as unlisted, filed by the wiki or a fallback', () => {
+    const { entries } = joinSources(
+      [ce(1, 'First Step Forward'), ce(2999, 'Echoes of Creation (VB)'), ce(4013, 'Gain Experience')],
+      [],
+      [{ cat: 'Tutorial', sub: 'Basics', ids: [1] }],
+    );
+    expect(entries.map((e) => [e.id, e.cat, e.sub, e.unlisted ?? false])).toEqual([
+      [1, 'Tutorial', 'Basics', false],
+      [2999, 'Special Events', "Vana'bout Round", true],
+      [4013, 'Other', 'Daily Objectives', true],
     ]);
   });
 
-  it('leaves non-NM objectives inside a Wanted id range alone', () => {
-    const { entries } = joinSources([ce(901, "Conflict: Escha - Zi'Tah VI")], []);
-    expect(entries[0]).toMatchObject({ cat: 'Combat (Region)', sub: 'Combat (Region)' });
+  it('without a menu nothing is marked unlisted', () => {
+    const { entries } = joinSources([ce(2999, 'Echoes of Creation (VB)')], []);
+    expect(entries[0].unlisted).toBeUndefined();
   });
 
   it('files mission chapters the wiki does not list, with the client flag', () => {

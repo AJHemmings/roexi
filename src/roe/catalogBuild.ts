@@ -1,14 +1,16 @@
 // Pure logic behind scripts/build-catalog.mjs: parse the BG-Wiki page, then join it to the client's
 // RoE table by normalised name. No Node imports, so it runs unchanged under Vitest.
 //
-// Sources (see data/LICENSES.md):
-//   data/roe_client.json -> the authority for ids, names, repeat flag, goal, rewards and text
-//                           (extracted from the game client by scripts/extract-client.mjs)
-//   BG-Wiki              -> category and section only, joined by normalised name
+// Sources (see data/LICENSES.md), all from data/roe_client.json unless noted:
+//   entries  -> the authority for ids, names, repeat flag, goal, rewards and text (client ROM/307/16.DAT)
+//   menu     -> the game's own category and section for everything its RoE menu lists (ROM/307/24.DAT)
+//   BG-Wiki  -> category and section for what the menu doesn't list right now (event objectives between
+//               events, the auto dailies), joined by normalised name
 // Nothing here may add or rename an id. The wiki only files ids that exist in the client table.
 
 import { normalizeName, editDistance } from './normalize.ts';
 import type { ClientEntry } from './clientDat.ts';
+import type { MenuSection } from './clientMenu.ts';
 
 export type WikiRow = { cat: string | null; sub: string | null; name: string };
 export type CatalogEntry = {
@@ -23,6 +25,7 @@ export type CatalogEntry = {
   acc?: number;
   text?: string;
   auto?: boolean;
+  unlisted?: boolean;
 };
 export type JoinReport = {
   exact: number;
@@ -31,6 +34,7 @@ export type JoinReport = {
   none: number;
   retired: number;
   internal: number;
+  menuPlaced: number;
   unmatchedIds: string[];
   unmatchedWiki: string[];
 };
@@ -171,23 +175,12 @@ export function isTypoPair(a: string, b: string): boolean {
   return x.length >= 5 && y.length >= 5 && editDistance(x, y) <= 2;
 }
 
-// The game lists Unity Wanted NMs in three sections, but the wiki only documents the first, so tiers 2
-// and 3 used to fall through to the generic "Unity" bucket. Each tier is a fixed block of ids in the
-// game's record table, so they're filed by id. Only Subjugation names count: the tier 3 block also
-// holds the Escha Conflict objectives (901-912). The in-game section names aren't in any source we
-// have, hence the neutral I/II/III.
-export const UNITY_WANTED_TIERS: [number, number, string][] = [
-  [817, 837, 'Unity (Wanted I)'],
-  [854, 869, 'Unity (Wanted II)'],
-  [891, 924, 'Unity (Wanted III)'],
-];
-
-function unityWantedTier(e: CatalogEntry): string | null {
-  if (!/^subj(ugation|\.):/i.test(e.n)) return null;
-  return UNITY_WANTED_TIERS.find(([lo, hi]) => e.id >= lo && e.id <= hi)?.[2] ?? null;
-}
-
-export function joinSources(client: ClientEntry[], wikiRows: WikiRow[]): { entries: CatalogEntry[]; report: JoinReport } {
+/**
+ * `menu` = the game's RoE menu (clientMenu.ts). Everything it lists takes the menu's category and section,
+ * and everything it doesn't list right now is marked `unlisted` (the wiki/fallback filing still applies to
+ * those). Without a menu, nothing is marked.
+ */
+export function joinSources(client: ClientEntry[], wikiRows: WikiRow[], menu?: readonly MenuSection[]): { entries: CatalogEntry[]; report: JoinReport } {
   const wikiBy = new Map<string, WikiRow[]>();
   for (const r of wikiRows) {
     const k = normalizeName(r.name);
@@ -196,7 +189,7 @@ export function joinSources(client: ClientEntry[], wikiRows: WikiRow[]): { entri
     if (!list) { list = []; wikiBy.set(key, list); }
     list.push(r);
   }
-  const report: JoinReport = { exact: 0, fuzzy: 0, fallback: 0, none: 0, retired: 0, internal: 0, unmatchedIds: [], unmatchedWiki: [] };
+  const report: JoinReport = { exact: 0, fuzzy: 0, fallback: 0, none: 0, retired: 0, internal: 0, menuPlaced: 0, unmatchedIds: [], unmatchedWiki: [] };
   const used = new Set<WikiRow>();
   const entries: CatalogEntry[] = [];
   for (const c of client) {
@@ -254,10 +247,13 @@ export function joinSources(client: ClientEntry[], wikiRows: WikiRow[]): { entri
     report.unmatchedIds.push(`${e.id}:${e.n}`);
   }
   for (const r of wikiRows) if (!used.has(r)) report.unmatchedWiki.push(`${r.cat}/${r.sub}:${r.name}`);
+  const placed = new Map<number, MenuSection>();
+  for (const s of menu ?? []) for (const id of s.ids) if (!placed.has(id)) placed.set(id, s);
   for (const e of entries) {
     if (e.id >= AUTO_RANGE[0] && e.id <= AUTO_RANGE[1]) { e.auto = true; e.cat = 'Other'; e.sub = 'Daily Objectives'; }
-    const tier = unityWantedTier(e);
-    if (tier) { e.cat = 'Unity'; e.sub = tier; }
+    const s = placed.get(e.id);
+    if (s) { e.cat = s.cat; e.sub = s.sub; report.menuPlaced++; }
+    else if (menu) e.unlisted = true;
   }
   return { entries, report };
 }

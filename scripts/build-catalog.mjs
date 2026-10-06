@@ -30,10 +30,11 @@ async function readWikiHtml(offline) {
 }
 
 const offline = process.argv.includes('--offline');
-const client = JSON.parse(readFileSync(CLIENT, 'utf8')).entries;
+const { entries: client, menu } = JSON.parse(readFileSync(CLIENT, 'utf8'));
 if (client.length < 1500) throw new Error(`data/roe_client.json has only ${client.length} entries; re-run npm run extract:client`);
+if (!Array.isArray(menu) || menu.length === 0) throw new Error('data/roe_client.json has no menu; re-run npm run extract:client');
 const wikiRows = parseWiki(await readWikiHtml(offline));
-const { entries, report } = joinSources(client, wikiRows);
+const { entries, report } = joinSources(client, wikiRows, menu);
 
 // If the wiki markup drifts (renamed columns, restructured headings) the parser degrades quietly to a
 // near-empty result rather than crashing. Refuse to overwrite a good catalog with one.
@@ -47,12 +48,13 @@ if (report.exact < 1200) {
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, JSON.stringify({
   builtAt: new Date().toISOString(),
-  sources: { ids: 'FFXI client ROM/307/16.DAT via data/roe_client.json', meta: WIKI_URL },
-  report: { exact: report.exact, fuzzy: report.fuzzy, fallback: report.fallback, none: report.none, retired: report.retired, internal: report.internal, wikiRows: wikiRows.length },
+  sources: { ids: 'FFXI client ROM/307/16.DAT via data/roe_client.json', sections: 'FFXI client ROM/307/24.DAT (RoE menu) via data/roe_client.json', meta: WIKI_URL },
+  report: { exact: report.exact, fuzzy: report.fuzzy, fallback: report.fallback, none: report.none, retired: report.retired, internal: report.internal, menuPlaced: report.menuPlaced, wikiRows: wikiRows.length },
   entries,
 }));
 console.log(`ids ${entries.length}  wiki rows ${wikiRows.length}`);
-console.log(`exact ${report.exact}  fuzzy ${report.fuzzy}  fallback-category ${report.fallback}  uncategorised ${report.none}  retired ${report.retired}  internal ${report.internal}`);
+console.log(`filed by the game's menu ${report.menuPlaced}  not in the menu right now ${entries.filter((e) => e.unlisted).length}`);
+console.log(`wiki: exact ${report.exact}  fuzzy ${report.fuzzy}  fallback-category ${report.fallback}  uncategorised ${report.none}  retired ${report.retired}  internal ${report.internal}`);
 console.log(`unmatched ids (${report.unmatchedIds.length}):`);
 for (const s of report.unmatchedIds.slice(0, 60)) console.log('  ' + s);
 console.log(`unmatched wiki rows (${report.unmatchedWiki.length}):`);
