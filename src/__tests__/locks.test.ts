@@ -15,6 +15,16 @@ const byId = new Map(entries.map((e) => [e.id, e]));
 
 describe('objectiveState', () => {
   it('auto ids are auto', () => expect(objectiveState(char('A'), 4008, byId)).toBe('auto'));
+  it("an objective the game's menu doesn't list right now is unlisted, and never remaining", () => {
+    const withEvent = new Map(byId).set(2999, { id: 2999, n: 'Echoes of Creation (VB)', repeat: false, unlisted: true });
+    expect(objectiveState(char('A'), 2999, withEvent)).toBe('unlisted');
+    expect(isRemaining('unlisted')).toBe(false);
+    expect(showInRemaining([char('A')], 2999, withEvent)).toBe(false);
+  });
+  it('an auto daily stays auto even when marked unlisted', () => {
+    const autoUnlisted = new Map(byId).set(4008, { id: 4008, n: 'Auto daily', auto: true, unlisted: true });
+    expect(objectiveState(char('A'), 4008, autoUnlisted)).toBe('auto');
+  });
   it('active wins over everything else', () => {
     const c = char('A', { active: [{ id: 1, p: 0 }], doneIds: new Set([1]), gameLocked: new Map([[1, 5]]) });
     expect(objectiveState(c, 1, byId)).toBe('active');

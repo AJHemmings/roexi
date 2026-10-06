@@ -40,7 +40,8 @@ export function buildCatalog(entries: CatalogEntry[]): Catalog {
     return entries.filter((e) => e.n.toLowerCase().includes(needle));
   }
 
-  const isAddable = (id: number): boolean => !isAutoId(id);
+  // Auto dailies are assigned by the game; unlisted ones aren't in its RoE menu right now (spec 2026-10-06 §8).
+  const isAddable = (id: number): boolean => !isAutoId(id) && !byId.get(id)?.unlisted;
 
   return { entries, byId, tree, search, isAddable };
 }

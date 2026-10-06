@@ -26,6 +26,19 @@ describe('buildAddPlan', () => {
     expect(plan.send).toEqual([]);
   });
 
+  it("skips ids the game's menu doesn't list right now", () => {
+    const withEvent = new Map(byId).set(5, { id: 5, n: 'Echoes of Creation (VB)', unlisted: true });
+    const [plan] = buildAddPlan([char({})], [5, 1], withEvent);
+    expect(plan.skipUnlisted).toEqual([5]);
+    expect(plan.send).toEqual([1]);
+  });
+
+  it('reports an auto daily as auto, not unlisted, even though the menu never lists it', () => {
+    const [plan] = buildAddPlan([char({})], [4013], new Map([[4013, { id: 4013, n: 'Gain Experience', auto: true, unlisted: true }]]));
+    expect(plan.skipAuto).toEqual([4013]);
+    expect(plan.skipUnlisted).toEqual([]);
+  });
+
   it('skips ids already active for that character', () => {
     const [plan] = buildAddPlan([char({ active: [{ id: 1, p: 0 }] })], [1, 2], byId);
     expect(plan.skipActive).toEqual([1]);

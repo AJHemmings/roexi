@@ -4,12 +4,16 @@ import type { KnownChar, CatalogEntry } from './types';
 import { isAutoId } from './types';
 import { doneState } from './bitmap';
 
-export type ObjState = 'auto' | 'active' | 'done' | 'locked' | 'unknown' | 'open';
+export type ObjState = 'auto' | 'active' | 'unlisted' | 'done' | 'locked' | 'unknown' | 'open';
 
-/** Precedence: auto → active → done (one-time only, like buildAddPlan) → locked → unknown → open. */
+/**
+ * Precedence: auto → active → unlisted (the game's menu doesn't list it right now, spec 2026-10-06 §8) →
+ * done (one-time only, like buildAddPlan) → locked → unknown → open.
+ */
 export function objectiveState(c: KnownChar, id: number, byId: Map<number, CatalogEntry>): ObjState {
   if (isAutoId(id)) return 'auto';
   if (c.active.some((a) => a.id === id)) return 'active';
+  if (byId.get(id)?.unlisted) return 'unlisted';
   const done = doneState(c, id);
   if (done === 'done' && byId.get(id)?.repeat === false) return 'done';
   if (c.gameLocked?.has(id)) return 'locked';

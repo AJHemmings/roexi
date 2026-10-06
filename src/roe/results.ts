@@ -8,6 +8,7 @@ export type AddCharResult = {
   name: string;
   status: 'full' | 'offline' | AckStatus;
   skipAuto: number[];
+  skipUnlisted: number[];
   skipActive: number[];
   skipDone: number[];
   added: number[];

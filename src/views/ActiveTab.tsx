@@ -12,7 +12,7 @@ import { MAX_ACTIVE } from '../roe/types';
 import type { KnownChar, CatalogEntry } from '../roe/types';
 
 const ADD_BLOCK_LABEL: Record<AddBlockReason, string> = {
-  auto: 'auto daily', active: 'active', completed: 'completed', offline: 'offline', full: `full (${MAX_ACTIVE}/${MAX_ACTIVE})`,
+  auto: 'auto daily', unlisted: 'not in game menu', active: 'active', completed: 'completed', offline: 'offline', full: `full (${MAX_ACTIVE}/${MAX_ACTIVE})`,
 };
 
 /** Every character in scope for this objective: those who have it get their progress bar and a quick

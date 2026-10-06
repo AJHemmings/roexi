@@ -86,6 +86,11 @@ describe('addBlockReason', () => {
   it("prefers 'auto' over everything", () => {
     expect(addBlockReason(char('Aldric', { online: false, active: thirty }), 4010, byId)).toBe('auto');
   });
+  it("returns 'unlisted' for an objective the game's menu doesn't list right now, before anything per-character", () => {
+    const withEvent = new Map(byId).set(2999, { id: 2999, n: 'Echoes of Creation (VB)', unlisted: true });
+    expect(addBlockReason(char('Aldric'), 2999, withEvent)).toBe('unlisted');
+    expect(addBlockReason(char('Aldric', { online: false, active: thirty }), 2999, withEvent)).toBe('unlisted');
+  });
   it("prefers 'active' over 'offline'", () => {
     const c = char('Aldric', { online: false, active: [{ id: 10, p: 0 }] });
     expect(addBlockReason(c, 10, byId)).toBe('active');

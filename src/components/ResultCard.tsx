@@ -14,6 +14,7 @@ export function addLine(c: AddCharResult, byId: Map<number, CatalogEntry>): stri
   if (c.skipActive.length) parts.push(`already active: ${c.skipActive.map((id) => nameFor(byId, id)).join(', ')}`);
   if (c.skipDone.length) parts.push(`already completed: ${c.skipDone.map((id) => nameFor(byId, id)).join(', ')}`);
   if (c.skipAuto.length) parts.push(`daily (can't add): ${c.skipAuto.map((id) => nameFor(byId, id)).join(', ')}`);
+  if (c.skipUnlisted.length) parts.push(`not in the game's menu right now: ${c.skipUnlisted.map((id) => nameFor(byId, id)).join(', ')}`);
   return `${c.name}: ${parts.join(' · ') || 'nothing to do'}`;
 }
 

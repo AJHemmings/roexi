@@ -52,4 +52,10 @@ describe('buildCatalog', () => {
   it('isAddable is true for an id not in the catalog at all, since it only checks the auto range', () => {
     expect(catalog.isAddable(99999)).toBe(true);
   });
+
+  it("isAddable is false for an objective the game's menu doesn't list right now", () => {
+    const withEvent = buildCatalog([...ENTRIES, { id: 2999, n: 'Echoes of Creation (VB)', cat: 'Special Events', sub: "Vana'bout Round", unlisted: true }]);
+    expect(withEvent.isAddable(2999)).toBe(false);
+    expect(withEvent.isAddable(1)).toBe(true);
+  });
 });
