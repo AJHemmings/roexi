@@ -69,6 +69,11 @@ describe('parseRoeDat', () => {
     expect(parseRoeDat(raw).map((e) => [e.id, e.n])).toEqual([[1, 'Scenarios 20']]);
   });
 
+  it('treats the client\'s "." placeholder as empty: skips "." names and omits "." descriptions', () => {
+    const raw = dat(record({ id: 0, full: '.', text: '.', goal: 5 }), record({ id: 1, full: 'Unlock Scenarios II', text: '.' }));
+    expect(parseRoeDat(raw)).toEqual([{ id: 1, n: 'Unlock Scenarios II', repeat: false, goal: 1, sparks: 100, exp: 300, acc: 0 }]);
+  });
+
   it('omits text when the description is empty and keeps zero figures', () => {
     const [e] = parseRoeDat(dat(record({ id: 0, full: 'Obtaining Ambuscade Armor', exp: 0 })));
     expect(e).toEqual({ id: 0, n: 'Obtaining Ambuscade Armor', repeat: false, goal: 1, sparks: 100, exp: 0, acc: 0 });

@@ -5,6 +5,8 @@
 // the objective id. Little-endian u32s: 8 repeat flag, 12 goal, 16 sparks, 20 exp, 28 accolades;
 // 32 field count (always 6), then 6 × (offset, type) with offsets relative to byte 32. A text field
 // (type 0) is a 28-byte header followed by NUL-terminated Shift-JIS. Field 2 = full name, 4 = description.
+// "." is the client's empty marker: unused slots (id 0, retired event ids, 4046-4052, …) are named ".",
+// and some real objectives (the Scenarios unlocks, the newer Escutcheons) have "." as their description.
 
 export type ClientEntry = { id: number; n: string; repeat: boolean; goal: number; sparks: number; exp: number; acc: number; text?: string };
 
@@ -14,6 +16,7 @@ const FIELD_COUNT = 6;
 const TEXT_HEADER = 28;
 const FULL_NAME = 2;
 const DESCRIPTION = 4;
+const EMPTY_MARKER = '.';
 
 /** Rotating each byte right by 5 restores the plain record bytes. */
 export function decodeRoeDat(raw: Uint8Array): Uint8Array {
@@ -28,7 +31,8 @@ function textField(rec: Uint8Array, v: DataView, field: number): string {
   const start = FIELD_TABLE + v.getUint32(FIELD_TABLE + 4 + field * 8, true) + TEXT_HEADER;
   let end = start;
   while (end < rec.length && rec[end] !== 0) end++;
-  return sjis.decode(rec.subarray(Math.min(start, rec.length), end)).trim();
+  const s = sjis.decode(rec.subarray(Math.min(start, rec.length), end)).trim();
+  return s === EMPTY_MARKER ? '' : s;
 }
 
 export function parseRoeDat(raw: Uint8Array): ClientEntry[] {
