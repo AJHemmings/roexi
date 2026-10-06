@@ -102,11 +102,6 @@ describe('joinSources', () => {
     expect(entries.map((e) => [e.sub, e.repeat])).toEqual([['Missions (Zilart)', false], ["Missions (San d'Oria)", false], ['Missions (Adoulin)', false]]);
   });
 
-  it('files fishing objectives the wiki does not list under Fishing: General', () => {
-    const { entries } = joinSources([ce(4079, "Fishing: Lu Shang's Fishing Rod")], []);
-    expect(entries[0]).toMatchObject({ cat: 'Fishing', sub: 'Fishing: General' });
-  });
-
   it('matches the Ayame North Gustaberg row the wiki lists without its Conflict: prefix', () => {
     const { entries, report } = joinSources([ce(3509, 'Conflict: North Gustaberg (UC)')], [row('North Gustaberg (UC)', 'Unity', 'Unity (Ayame)')]);
     expect(entries[0]).toMatchObject({ cat: 'Unity', sub: 'Unity (Ayame)' });
@@ -118,9 +113,15 @@ describe('joinSources', () => {
     expect(entries[0]).toMatchObject({ cat: 'Content', sub: 'A.M.A.N. Trove' });
   });
 
-  it('files Mentor License Unlock beside Mentor License', () => {
-    const { entries } = joinSources([ce(4053, 'Mentor License Unlock')], []);
-    expect(entries[0]).toMatchObject({ cat: 'Tutorial', sub: 'Intermediate' });
+  it('drops the client\'s internal flags: records with a goal of 0 can never be undertaken', () => {
+    const { entries, report } = joinSources([
+      ce(3996, 'Scenarios 18', { goal: 0 }),
+      ce(4053, 'Mentor License Unlock', { goal: 0 }),
+      ce(4057, 'Escutcheon: Woodworking', { goal: 0 }),
+      ce(1060, 'Mentor License'),
+    ], []);
+    expect(entries.map((e) => e.id)).toEqual([1060]);
+    expect(report.internal).toBe(3);
   });
 
   it('drops the retired Content (Limbus) objectives', () => {

@@ -48,11 +48,11 @@ mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, JSON.stringify({
   builtAt: new Date().toISOString(),
   sources: { ids: 'FFXI client ROM/307/16.DAT via data/roe_client.json', meta: WIKI_URL },
-  report: { exact: report.exact, fuzzy: report.fuzzy, fallback: report.fallback, none: report.none, retired: report.retired, wikiRows: wikiRows.length },
+  report: { exact: report.exact, fuzzy: report.fuzzy, fallback: report.fallback, none: report.none, retired: report.retired, internal: report.internal, wikiRows: wikiRows.length },
   entries,
 }));
 console.log(`ids ${entries.length}  wiki rows ${wikiRows.length}`);
-console.log(`exact ${report.exact}  fuzzy ${report.fuzzy}  fallback-category ${report.fallback}  uncategorised ${report.none}  retired ${report.retired}`);
+console.log(`exact ${report.exact}  fuzzy ${report.fuzzy}  fallback-category ${report.fallback}  uncategorised ${report.none}  retired ${report.retired}  internal ${report.internal}`);
 console.log(`unmatched ids (${report.unmatchedIds.length}):`);
 for (const s of report.unmatchedIds.slice(0, 60)) console.log('  ' + s);
 console.log(`unmatched wiki rows (${report.unmatchedWiki.length}):`);

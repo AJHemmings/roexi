@@ -15,7 +15,7 @@ roexi is a desktop app for FFXI multiboxers to view and manage Records of Eminen
 
 ## Features
 
-- **Library**: the full ~1,570-objective catalog (ids, names, categories, rewards), searchable and grouped by category/subcategory, with Daily/Repeat tags and per-character active/done state.
+- **Library**: the full ~1,540-objective catalog (ids, names, categories, rewards), searchable and grouped by category/subcategory, with Daily/Repeat tags and per-character active/done state.
 - **Active**: every objective currently active on any connected character, with real per-character progress bars. Expand a row to see every character. The ones missing that objective get an **Add** button, or the reason they can't take it (offline, full, completed, auto daily). The row's ⋮ menu can add or remove it across your whole roster.
 - **Always-visible slot counts**: each character's `X/30` stays pinned at the top while you scroll, so you can see who has room before you add anything.
 - **Safe Add/Remove**: while a change is going through for a character, their buttons grey out with a spinner, so a double-click can't send it twice.

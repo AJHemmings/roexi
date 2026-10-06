@@ -30,6 +30,7 @@ export type JoinReport = {
   fallback: number;
   none: number;
   retired: number;
+  internal: number;
   unmatchedIds: string[];
   unmatchedWiki: string[];
 };
@@ -43,6 +44,12 @@ export const AUTO_RANGE: readonly [number, number] = [4008, 4021];
 // content): https://www.bg-wiki.com/ffxi/Records_of_Eminence#Content_(Limbus). The client still carries
 // their records, so they're dropped by id.
 export const RETIRED: readonly number[] = [772, 773, 774, 775, 776, 777, 778, 779, 780, 781, 782, 783];
+
+// The client also carries internal flags the game sets by itself and never lists in its menu: the
+// "Scenarios N" / "Unlock Scenarios" story trackers, Mentor License Unlock, the "Escutcheon: X" quest flags
+// and Lu Shang's rod. They are the only records with a goal of 0, which no real objective has, and their
+// descriptions are blank or internal references ("926", "Records of Eminence Quest 2").
+const isInternalFlag = (c: ClientEntry): boolean => c.goal === 0;
 
 // Wiki spellings that differ from the client name for a reason other than a typo.
 // Key: normalised wiki name, value: normalised client name.
@@ -73,8 +80,6 @@ export const FALLBACK: FallbackRule[] = [
   [/^treasures of aht urhgan/i, 'Tutorial', 'Missions (Aht Urhgan)'],
   [/^wings of the goddess/i, 'Tutorial', 'Missions (Altana)'],
   [/^seekers of adoulin/i, 'Tutorial', 'Missions (Adoulin)'],
-  // No source lists it; filed beside Mentor License (1060), the objective it unlocks.
-  [/^mentor license unlock$/i, 'Tutorial', 'Intermediate'],
   [/\(uc\)$/i, 'Unity', 'Unity'],
   [/\(vbd\)$/i, 'Special Events', "Vana'bout Daily"],
   [/\(vb\)$/i, 'Special Events', "Vana'bout Round"],
@@ -85,11 +90,8 @@ export const FALLBACK: FallbackRule[] = [
   [/^subj(ugation|\.):/i, 'Combat (Region)', 'Subjugation'],
   [/^spoils/i, 'Combat (Wide Area)', 'Combat (Spoils)'],
   [/^harvesting:/i, 'Harvesting', 'Harvesting'],
-  [/scenarios/i, 'Other', 'Scenarios'],
-  [/^escutcheon:/i, 'Crafting', 'Escutcheons'],
   [/^fame:/i, 'Achievements', 'Fame'],
   [/^region:/i, 'Fishing', 'Fishing: Tenacity'],
-  [/^fishing:/i, 'Fishing', 'Fishing: General'],
 ];
 
 /** Strip tags, decode the entities the wiki uses, collapse whitespace. */
@@ -194,11 +196,12 @@ export function joinSources(client: ClientEntry[], wikiRows: WikiRow[]): { entri
     if (!list) { list = []; wikiBy.set(key, list); }
     list.push(r);
   }
-  const report: JoinReport = { exact: 0, fuzzy: 0, fallback: 0, none: 0, retired: 0, unmatchedIds: [], unmatchedWiki: [] };
+  const report: JoinReport = { exact: 0, fuzzy: 0, fallback: 0, none: 0, retired: 0, internal: 0, unmatchedIds: [], unmatchedWiki: [] };
   const used = new Set<WikiRow>();
   const entries: CatalogEntry[] = [];
   for (const c of client) {
     if (RETIRED.includes(c.id)) { report.retired++; continue; }
+    if (isInternalFlag(c)) { report.internal++; continue; }
     entries.push({ id: c.id, n: c.n, repeat: c.repeat, goal: c.goal, sparks: c.sparks, exp: c.exp, acc: c.acc, ...(c.text ? { text: c.text } : {}) });
   }
   let pending: CatalogEntry[] = [];
