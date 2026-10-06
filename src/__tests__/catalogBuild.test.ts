@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { parseWiki, parseMapping, joinSources, isTypoPair } from '../roe/catalogBuild';
+import { parseWiki, joinSources, isTypoPair, RETIRED } from '../roe/catalogBuild';
 import type { WikiRow } from '../roe/catalogBuild';
+import type { ClientEntry } from '../roe/clientDat';
 
-const row = (name: string, cat: string, sub: string, extra: Partial<WikiRow> = {}): WikiRow =>
-  ({ cat, sub, name, text: `${name} text`, ...extra });
+const row = (name: string, cat: string, sub: string): WikiRow => ({ cat, sub, name });
+const ce = (id: number, n: string, over: Partial<ClientEntry> = {}): ClientEntry =>
+  ({ id, n, repeat: false, goal: 1, sparks: 100, exp: 300, acc: 0, ...over });
 
 describe('parseWiki', () => {
   const html = `
@@ -24,122 +26,108 @@ describe('parseWiki', () => {
 </table>`;
 
   it('walks headings and objective tables in document order, skipping the Contents box', () => {
-    const rows = parseWiki(html);
-    expect(rows).toHaveLength(3);
-    expect(rows[0]).toMatchObject({
-      cat: 'Tutorial', sub: 'Basics', name: 'First Step Forward', text: 'Speak with an NPC.',
-      goal: 1, repeat: false, sparks: 100, exp: 300,
-    });
-    expect(rows[0].acc).toBeUndefined();
-    expect(rows[1]).toMatchObject({ cat: 'Tutorial', sub: 'Basics', name: 'Vanquish 1 Enemy', repeat: true, exp: 500 });
-  });
-
-  it('renames shared Unity rows with their letter and marks them repeatable', () => {
-    const unity = parseWiki(html)[2];
-    expect(unity).toMatchObject({
-      cat: 'Unity', sub: 'Unity (Shared A)', name: 'Unity Communique A (UC)', repeat: true,
-      goal: 1, sparks: 200, exp: 1000, acc: 50,
-    });
+    expect(parseWiki(html)).toEqual([
+      { cat: 'Tutorial', sub: 'Basics', name: 'First Step Forward' },
+      { cat: 'Tutorial', sub: 'Basics', name: 'Vanquish 1 Enemy' },
+      { cat: 'Unity', sub: 'Unity (Shared A)', name: 'Unity Communique A (UC)' },
+    ]);
   });
 });
 
 describe('joinSources', () => {
+  it('takes everything but the category from the client; the wiki only files it', () => {
+    const { entries, report } = joinSources(
+      [ce(12, 'Vanquish Multiple Enemies I', { repeat: true, goal: 200, sparks: 1000, exp: 5000, acc: 100, text: 'Defeat enemies.' })],
+      [row('Vanquish Multiple Enemies I', 'Combat (Wide Area)', 'Combat (General)')],
+    );
+    expect(entries).toEqual([{
+      id: 12, n: 'Vanquish Multiple Enemies I', repeat: true, goal: 200, sparks: 1000, exp: 5000, acc: 100,
+      text: 'Defeat enemies.', cat: 'Combat (Wide Area)', sub: 'Combat (General)',
+    }]);
+    expect(report.exact).toBe(1);
+  });
+
   it('pairs the k-th duplicate id with the k-th duplicate wiki row', () => {
-    const mapping = [{ id: 2168, n: "Guild Master's Request 1" }, { id: 2172, n: "Guild Master's Request 1" }];
-    const wiki = [
-      row("Guild Master's Request 1", 'Crafting', 'Crafting: Escutcheons (Woodworking)'),
-      row("Guild Master's Request 1", 'Crafting', 'Crafting: Escutcheons (Clothcraft)'),
-    ];
-    const { entries, report } = joinSources(mapping, wiki);
-    expect(entries[0]).toMatchObject({ id: 2168, sub: 'Crafting: Escutcheons (Woodworking)' });
-    expect(entries[1]).toMatchObject({ id: 2172, sub: 'Crafting: Escutcheons (Clothcraft)' });
+    const { entries, report } = joinSources(
+      [ce(2168, "Guild Master's Request 1"), ce(2172, "Guild Master's Request 1")],
+      [row("Guild Master's Request 1", 'Crafting', 'Crafting: Escutcheons (Woodworking)'), row("Guild Master's Request 1", 'Crafting', 'Crafting: Escutcheons (Clothcraft)')],
+    );
+    expect(entries.map((e) => [e.id, e.sub])).toEqual([[2168, 'Crafting: Escutcheons (Woodworking)'], [2172, 'Crafting: Escutcheons (Clothcraft)']]);
     expect(report.exact).toBe(2);
   });
 
   it('accepts a single misspelt token as a typo pair', () => {
-    const mapping = [{ id: 1, n: 'Conflict: Foret de Hennetiel I' }];
-    const wiki = [row('Conflict: Foret de Hennitiel I', 'Combat (Region)', 'Combat (Region)', { goal: 10 })];
-    const { entries, report } = joinSources(mapping, wiki);
-    expect(entries[0]).toMatchObject({ cat: 'Combat (Region)', sub: 'Combat (Region)', goal: 10, text: 'Conflict: Foret de Hennitiel I text' });
+    const { entries, report } = joinSources([ce(1, 'Conflict: Foret de Hennetiel I', { goal: 5 })],
+      [row('Conflict: Foret de Hennitiel I', 'Combat (Region)', 'Combat (Region)')]);
+    expect(entries[0]).toMatchObject({ cat: 'Combat (Region)', sub: 'Combat (Region)', goal: 5 });
     expect(report.fuzzy).toBe(1);
-    expect(report.fallback).toBe(0);
   });
 
   it('does not pair objectives that differ by a short whole word', () => {
-    const mapping = [{ id: 3063, n: 'Deal 500+ Fire Damage (VBD)' }];
-    const wiki = [row('Deal 500+ Ice Damage (VBD)', 'Special Events', "Vana'bout Daily")];
-    const { entries, report } = joinSources(mapping, wiki);
+    const { entries, report } = joinSources([ce(3063, 'Deal 500+ Fire Damage (VBD)')], [row('Deal 500+ Ice Damage (VBD)', 'Special Events', "Vana'bout Daily")]);
     expect(report.fuzzy).toBe(0);
     expect(report.fallback).toBe(1);
     expect(entries[0]).toMatchObject({ id: 3063, cat: 'Special Events', sub: "Vana'bout Daily" });
-    expect(entries[0].text).toBeUndefined();
     expect(report.unmatchedWiki).toEqual(["Special Events/Vana'bout Daily:Deal 500+ Ice Damage (VBD)"]);
   });
 
   it('marks the auto-tracked id range even with no wiki data', () => {
-    const { entries, report } = joinSources([{ id: 4013, n: 'Gain Experience' }], []);
+    const { entries, report } = joinSources([ce(4013, 'Gain Experience')], []);
     expect(entries[0]).toMatchObject({ id: 4013, auto: true, cat: 'Other', sub: 'Daily Objectives' });
     expect(report.none).toBe(1);
   });
 
-  it('files Unity Wanted NMs into their three tiers by id, whether or not the wiki lists them', () => {
+  it('files Unity Wanted NMs into their three tiers by id and keeps the client repeat flag', () => {
     const { entries } = joinSources([
-      { id: 817, n: 'Subjugation: Hugemaw Harold (UC)' },
-      { id: 854, n: 'Subjugation: Sybaritic Samantha (UC)' },
-      { id: 855, n: 'Subj.: Keeper of Heiligtum (UC)' },
-      { id: 915, n: 'Subjugation: Hidhaegg (UC)' },
+      ce(817, 'Subjugation: Hugemaw Harold (UC)', { repeat: true }),
+      ce(854, 'Subjugation: Sybaritic Samantha (UC)', { repeat: true }),
+      ce(855, 'Subj.: Keeper of Heiligtum (UC)', { repeat: true }),
+      ce(915, 'Subjugation: Hidhaegg (UC)', { repeat: true }),
     ], [row('Subjugation: Hugemaw Harold (UC)', 'Unity', 'Unity (Wanted)')]);
-    expect(entries.map((e) => [e.id, e.cat, e.sub])).toEqual([
-      [817, 'Unity', 'Unity (Wanted I)'],
-      [854, 'Unity', 'Unity (Wanted II)'],
-      [855, 'Unity', 'Unity (Wanted II)'],
-      [915, 'Unity', 'Unity (Wanted III)'],
+    expect(entries.map((e) => [e.id, e.cat, e.sub, e.repeat])).toEqual([
+      [817, 'Unity', 'Unity (Wanted I)', true],
+      [854, 'Unity', 'Unity (Wanted II)', true],
+      [855, 'Unity', 'Unity (Wanted II)', true],
+      [915, 'Unity', 'Unity (Wanted III)', true],
     ]);
   });
 
   it('leaves non-NM objectives inside a Wanted id range alone', () => {
-    const { entries } = joinSources([{ id: 901, n: "Conflict: Escha - Zi'Tah VI" }], []);
+    const { entries } = joinSources([ce(901, "Conflict: Escha - Zi'Tah VI")], []);
     expect(entries[0]).toMatchObject({ cat: 'Combat (Region)', sub: 'Combat (Region)' });
   });
 
-  it('marks mission chapters the wiki does not list as one-time', () => {
-    const { entries } = joinSources([
-      { id: 1, n: 'Rise of the Zilart 5' },
-      { id: 2, n: "San d'Oria Rank 3-1" },
-      { id: 3, n: 'Seekers of Adoulin 2' },
-    ], []);
-    expect(entries.map((e) => [e.sub, e.repeat])).toEqual([
-      ['Missions (Zilart)', false],
-      ["Missions (San d'Oria)", false],
-      ['Missions (Adoulin)', false],
-    ]);
+  it('files mission chapters the wiki does not list, with the client flag', () => {
+    const { entries } = joinSources([ce(1, 'Rise of the Zilart 5'), ce(2, "San d'Oria Rank 3-1"), ce(3, 'Seekers of Adoulin 2')], []);
+    expect(entries.map((e) => [e.sub, e.repeat])).toEqual([['Missions (Zilart)', false], ["Missions (San d'Oria)", false], ['Missions (Adoulin)', false]]);
   });
 
-  it('marks Unity Wanted tiers repeatable when the wiki gave no flag, and never overrides a wiki flag', () => {
-    const { entries } = joinSources([
-      { id: 817, n: 'Subjugation: Hugemaw Harold (UC)' },
-      { id: 854, n: 'Subjugation: Sybaritic Samantha (UC)' },
-      { id: 915, n: 'Subjugation: Hidhaegg (UC)' },
-    ], [row('Subjugation: Hugemaw Harold (UC)', 'Unity', 'Unity (Wanted)', { repeat: false })]);
-    expect(entries.map((e) => [e.id, e.repeat])).toEqual([[817, false], [854, true], [915, true]]);
-  });
-
-  it('leaves the repeat flag unset for fallback rules that do not carry one', () => {
-    const { entries } = joinSources([{ id: 5, n: 'Spoils (Red Chip)' }], []);
-    expect(entries[0].repeat).toBeUndefined();
+  it('files fishing objectives the wiki does not list under Fishing: General', () => {
+    const { entries } = joinSources([ce(4079, "Fishing: Lu Shang's Fishing Rod")], []);
+    expect(entries[0]).toMatchObject({ cat: 'Fishing', sub: 'Fishing: General' });
   });
 
   it('matches the Ayame North Gustaberg row the wiki lists without its Conflict: prefix', () => {
-    const { entries, report } = joinSources([{ id: 3509, n: 'Conflict: North Gustaberg (UC)' }],
-      [row('North Gustaberg (UC)', 'Unity', 'Unity (Ayame)', { goal: 10 })]);
-    expect(entries[0]).toMatchObject({ cat: 'Unity', sub: 'Unity (Ayame)', goal: 10 });
+    const { entries, report } = joinSources([ce(3509, 'Conflict: North Gustaberg (UC)')], [row('North Gustaberg (UC)', 'Unity', 'Unity (Ayame)')]);
+    expect(entries[0]).toMatchObject({ cat: 'Unity', sub: 'Unity (Ayame)' });
     expect(report.exact).toBe(1);
-    expect(report.unmatchedWiki).toEqual([]);
   });
 
-  it('files Mentor License Unlock beside Mentor License as a one-time objective', () => {
-    const { entries } = joinSources([{ id: 4053, n: 'Mentor License Unlock' }], []);
-    expect(entries[0]).toMatchObject({ cat: 'Tutorial', sub: 'Intermediate', repeat: false });
+  it('matches the Dynamis (D) monthly the wiki lists under its old name', () => {
+    const { entries } = joinSources([ce(3778, 'Dynamis (D) Instance Participation (M)')], [row('Dynamis - Divergence Participation (M)', 'Content', 'A.M.A.N. Trove')]);
+    expect(entries[0]).toMatchObject({ cat: 'Content', sub: 'A.M.A.N. Trove' });
+  });
+
+  it('files Mentor License Unlock beside Mentor License', () => {
+    const { entries } = joinSources([ce(4053, 'Mentor License Unlock')], []);
+    expect(entries[0]).toMatchObject({ cat: 'Tutorial', sub: 'Intermediate' });
+  });
+
+  it('drops the retired Content (Limbus) objectives', () => {
+    expect(RETIRED).toEqual([772, 773, 774, 775, 776, 777, 778, 779, 780, 781, 782, 783]);
+    const { entries, report } = joinSources([ce(772, 'Spoils (Ivory Chip)'), ce(782, 'Subjugation: Proto-Ultima'), ce(784, 'Kept')], []);
+    expect(entries.map((e) => e.id)).toEqual([784]);
+    expect(report.retired).toBe(2);
   });
 });
 
@@ -157,15 +145,5 @@ describe('isTypoPair', () => {
   });
   it('treats identical strings as a pair', () => {
     expect(isTypoPair('gain experience', 'gain experience')).toBe(true);
-  });
-});
-
-describe('parseMapping', () => {
-  it('reads id/name pairs and unescapes quotes', () => {
-    const entries = parseMapping('local roe_mapping = {\n    [1] = "First Step Forward",\n    [2047] = "Say \\"hi\\"",\n}');
-    expect(entries).toEqual([{ id: 1, n: 'First Step Forward' }, { id: 2047, n: 'Say "hi"' }]);
-  });
-  it('throws when nothing parses', () => {
-    expect(() => parseMapping('')).toThrow();
   });
 });
