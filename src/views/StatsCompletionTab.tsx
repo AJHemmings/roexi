@@ -5,7 +5,7 @@ import { Segmented, Chip, HelpTip } from '../ui';
 import { completionFor, categoriesFor, subsFor, unclassifiedCount } from '../roe/completion';
 import { EVENT_HELP, UNCLASSIFIED_HELP } from '../roe/copy';
 import { valueFor, type ChartPrefs, type ChartType, type ChartValue, type CompletionKind } from '../stats/prefs';
-import { shownEntries, categoryState, setCategoryShown, hiddenCount } from '../stats/sections';
+import { shownEntries, categoryState, setCategoryShown, hiddenCount, sectionKeys } from '../stats/sections';
 import { KindChips, COMPLETION_KIND_OPTIONS } from '../stats/KindChips';
 import { SectionsModal } from '../stats/SectionsModal';
 import { OverviewChart, CompactBars } from '../stats/Charts';
@@ -39,7 +39,8 @@ export default function StatsCompletionTab({ scope, catalog, colorOf, kinds, set
   const compact = useMode() === 'compact';
   const unclassified = useMemo(() => unclassifiedCount(catalog.entries), [catalog]);
   const setHidden = (hidden: string[]) => setChart({ hidden });
-  const nHidden = hiddenCount(chart.hidden);
+  const known = useMemo(() => sectionKeys(catalog.entries), [catalog]);
+  const nHidden = hiddenCount(chart.hidden, known);
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-3 flex flex-col gap-3">

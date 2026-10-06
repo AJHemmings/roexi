@@ -49,4 +49,8 @@ describe('hideAll / hiddenCount', () => {
     expect(hiddenCount([])).toBe(0);
     expect(hiddenCount(['Unity', 'Unity::Unity (Wanted I)', 'Tutorial::Basics'])).toBe(2);
   });
+  it('ignores saved keys for sections that no longer exist (e.g. renamed by a catalog update)', () => {
+    const known = new Set(['Unity', 'Unity::Unity (Wanted 2)', 'Tutorial', 'Tutorial::Basics']);
+    expect(hiddenCount(['Unity::Unity (Wanted II)', 'Tutorial::Basics'], known)).toBe(1);
+  });
 });

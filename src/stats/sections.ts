@@ -34,8 +34,16 @@ export function setSectionShown(hidden: readonly string[], cat: string, sub: str
 /** Hide every listed category. Keys for categories not listed (other kinds) are kept. */
 export const hideAll = (hidden: readonly string[], cats: readonly string[]): string[] => [...new Set([...hidden, ...cats])];
 
-/** The "N hidden" note: hidden categories, plus hidden sections whose category is still shown. */
-export function hiddenCount(hidden: readonly string[]): number {
-  const cats = new Set(hidden.filter((k) => !isSectionKey(k)));
-  return hidden.filter((k) => !isSectionKey(k) || !cats.has(k.slice(0, k.indexOf('::')))).length;
+/**
+ * The "N hidden" note: hidden categories, plus hidden sections whose category is still shown. With `known`
+ * (the catalog's category and section keys), saved keys that no longer exist are left out.
+ */
+export function hiddenCount(hidden: readonly string[], known?: ReadonlySet<string>): number {
+  const keys = known ? hidden.filter((k) => known.has(k)) : hidden;
+  const cats = new Set(keys.filter((k) => !isSectionKey(k)));
+  return keys.filter((k) => !isSectionKey(k) || !cats.has(k.slice(0, k.indexOf('::')))).length;
 }
+
+/** Every category and section key the catalog has, for hiddenCount. */
+export const sectionKeys = (entries: CatalogEntry[]): Set<string> =>
+  new Set(entries.flatMap((e) => [catOf(e), subKey(catOf(e), subOf(e))]));
