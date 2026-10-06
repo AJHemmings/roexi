@@ -32,9 +32,9 @@ export default function StatsLeftTab({ scope, catalog, colorOf, kind, setKind, s
   setHiddenCats: (c: string[]) => void;
 }) {
   const [selected, setSelected] = useState<number[]>([]);
-  const cats = useMemo(() => categoriesFor(catalog.entries, kind), [catalog, kind]);
+  const cats = useMemo(() => categoriesFor(catalog.entries, [kind]), [catalog, kind]);
   const list = useMemo(
-    () => sortLeft(leftToDo(scope, catalog.entries, catalog.byId, kind).filter((e) => !hiddenCats.includes(catOf(e))), sort),
+    () => sortLeft(leftToDo(scope, catalog.entries, catalog.byId, [kind]).filter((e) => !hiddenCats.includes(catOf(e))), sort),
     [scope, catalog, kind, sort, hiddenCats],
   );
   const many = scope.length > 1;

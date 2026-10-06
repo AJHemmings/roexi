@@ -24,6 +24,11 @@ export function kindOf(e: CatalogEntry): Kind | null {
   return 'unclassified';
 }
 
+const inKinds = (e: CatalogEntry, kinds: readonly Kind[]): boolean => {
+  const k = kindOf(e);
+  return k !== null && kinds.includes(k);
+};
+
 /** The completion bit is set. For repeatables and events: completed at least once. */
 export const isCompleted = (c: KnownChar, id: number): boolean => doneState(c, id) === 'done';
 
@@ -45,10 +50,10 @@ function addTo(m: Map<string, Tally>, key: string, done: boolean, unknown: boole
   add(t, done, unknown);
 }
 
-export function completionFor(c: KnownChar, entries: CatalogEntry[], kind: Kind): CharCompletion {
+export function completionFor(c: KnownChar, entries: CatalogEntry[], kinds: readonly Kind[]): CharCompletion {
   const out: CharCompletion = { name: c.name, overall: { done: 0, total: 0, unknown: 0 }, byCat: new Map(), bySub: new Map() };
   for (const e of entries) {
-    if (kindOf(e) !== kind) continue;
+    if (!inKinds(e, kinds)) continue;
     const st = doneState(c, e.id);
     const done = st === 'done';
     const unknown = st === 'unknown';
@@ -60,21 +65,21 @@ export function completionFor(c: KnownChar, entries: CatalogEntry[], kind: Kind)
 }
 
 /** Library Quick stats: by definition the Stats page's One-time Overall figure. */
-export const quickStats = (c: KnownChar, entries: CatalogEntry[]): Tally => completionFor(c, entries, 'one-time').overall;
+export const quickStats = (c: KnownChar, entries: CatalogEntry[]): Tally => completionFor(c, entries, ['one-time']).overall;
 
 export const unclassifiedCount = (entries: CatalogEntry[]): number => entries.filter((e) => kindOf(e) === 'unclassified').length;
 
-export function categoriesFor(entries: CatalogEntry[], kind: Kind): string[] {
-  return [...new Set(entries.filter((e) => kindOf(e) === kind).map(catOf))].sort((a, b) => a.localeCompare(b));
+export function categoriesFor(entries: CatalogEntry[], kinds: readonly Kind[]): string[] {
+  return [...new Set(entries.filter((e) => inKinds(e, kinds)).map(catOf))].sort((a, b) => a.localeCompare(b));
 }
 
-export function subsFor(entries: CatalogEntry[], kind: Kind, cat: string): string[] {
-  return [...new Set(entries.filter((e) => kindOf(e) === kind && catOf(e) === cat).map(subOf))].sort((a, b) => a.localeCompare(b));
+export function subsFor(entries: CatalogEntry[], kinds: readonly Kind[], cat: string): string[] {
+  return [...new Set(entries.filter((e) => inKinds(e, kinds) && catOf(e) === cat).map(subOf))].sort((a, b) => a.localeCompare(b));
 }
 
 /** The explorer's rows for a matrix cell. cat null = Overall; sub null = the whole category. */
-export function cellEntries(entries: CatalogEntry[], kind: Kind, cat: string | null, sub: string | null): CatalogEntry[] {
-  return entries.filter((e) => kindOf(e) === kind && (cat === null || catOf(e) === cat) && (sub === null || subOf(e) === sub));
+export function cellEntries(entries: CatalogEntry[], kinds: readonly Kind[], cat: string | null, sub: string | null): CatalogEntry[] {
+  return entries.filter((e) => inKinds(e, kinds) && (cat === null || catOf(e) === cat) && (sub === null || subOf(e) === sub));
 }
 
 /**
@@ -82,8 +87,8 @@ export function cellEntries(entries: CatalogEntry[], kind: Kind, cat: string | n
  * excludes objectives a character already has active, but includes addable-again repeatables
  * that are already done once.
  */
-export function leftToDo(scope: KnownChar[], entries: CatalogEntry[], byId: Map<number, CatalogEntry>, kind: Kind): CatalogEntry[] {
-  return entries.filter((e) => kindOf(e) === kind && showInRemaining(scope, e.id, byId));
+export function leftToDo(scope: KnownChar[], entries: CatalogEntry[], byId: Map<number, CatalogEntry>, kinds: readonly Kind[]): CatalogEntry[] {
+  return entries.filter((e) => inKinds(e, kinds) && showInRemaining(scope, e.id, byId));
 }
 
 export function neededBy(scope: KnownChar[], id: number, byId: Map<number, CatalogEntry>): string[] {

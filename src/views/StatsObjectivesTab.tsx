@@ -25,11 +25,11 @@ export default function StatsObjectivesTab({ scope, catalog, kind, setKind, cell
   cell: Cell | null;
   setCell: (c: Cell | null) => void;
 }) {
-  const cats = useMemo(() => categoriesFor(catalog.entries, kind), [catalog, kind]);
+  const cats = useMemo(() => categoriesFor(catalog.entries, [kind]), [catalog, kind]);
   // Fall back to the first in-scope character's Overall when nothing (or a character no longer in scope) is picked.
   const active: Cell | null = cell && scope.some((c) => c.name === cell.char) ? cell : scope[0] ? { char: scope[0].name, cat: null, sub: null } : null;
   const activeChar = active ? scope.find((c) => c.name === active.char) : undefined;
-  const entries = active ? cellEntries(catalog.entries, kind, active.cat, active.sub) : [];
+  const entries = active ? cellEntries(catalog.entries, [kind], active.cat, active.sub) : [];
 
   return (
     <div className="flex-1 min-h-0 px-3 pb-3 flex flex-col gap-3">

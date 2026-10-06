@@ -35,8 +35,8 @@ export default function StatsCompletionTab({ scope, catalog, colorOf, kind, setK
   const chart = useMemo(() => parseChartPrefs(rawChart), [rawChart]);
   const setChart = (patch: Partial<ChartPrefs>) => setRawChart((prev: unknown) => ({ ...parseChartPrefs(prev), ...patch }));
 
-  const comps = useMemo(() => scope.map((c) => ({ c, comp: completionFor(c, catalog.entries, kind) })), [scope, catalog, kind]);
-  const cats = useMemo(() => categoriesFor(catalog.entries, kind), [catalog, kind]);
+  const comps = useMemo(() => scope.map((c) => ({ c, comp: completionFor(c, catalog.entries, [kind]) })), [scope, catalog, kind]);
+  const cats = useMemo(() => categoriesFor(catalog.entries, [kind]), [catalog, kind]);
   const shownCats = cats.filter((c) => !chart.hiddenCats.includes(c));
   const series = comps.map(({ c, comp }) => ({ name: c.name, color: colorOf(c.name), tallies: comp.byCat }));
   const compact = useMode() === 'compact';
@@ -82,7 +82,7 @@ export default function StatsCompletionTab({ scope, catalog, colorOf, kind, setK
       <section className="min-w-0 rounded-xl bg-surface border border-line p-2">
         <Matrix
           cols={comps.map(({ c, comp }) => ({ name: c.name, online: c.online, color: colorOf(c.name), comp }))}
-          cats={cats} subsOf={(cat) => subsFor(catalog.entries, kind, cat)}
+          cats={cats} subsOf={(cat) => subsFor(catalog.entries, [kind], cat)}
           selected={selected} onSelect={onSelect} />
       </section>
     </div>
