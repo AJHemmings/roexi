@@ -143,6 +143,7 @@ local function build_self(kind)
         .. ',"server":"' .. esc(server_name) .. '"'
         .. ',"av":"' .. esc(_addon.version) .. '"'
         .. ',"apath":"' .. esc(windower.addon_path) .. '"'
+        .. ',"fpath":"' .. esc(windower.ffxi_path) .. '"'
         .. '}\n'
 end
 

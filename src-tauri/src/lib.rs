@@ -411,6 +411,31 @@ fn read_text_file(path: String) -> Result<String, String> {
     fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
+// The game's RoE menu table lives at <FFXI>\ROM\307\24.DAT (spec 2026-10-06 §8); it is parsed by
+// src/roe/clientMenu.ts. The addon reports <FFXI> (windower.ffxi_path), and only this one file can be read.
+const ROE_MENU_RECORD: usize = 5120;
+const ROE_MENU_MAX_BYTES: usize = 16 * 1024 * 1024;
+
+fn roe_menu_path(ffxi_path: &str) -> std::path::PathBuf {
+    Path::new(ffxi_path).join("ROM").join("307").join("24.DAT")
+}
+
+fn check_roe_menu_size(len: usize) -> Result<(), String> {
+    if len == 0 || len % ROE_MENU_RECORD != 0 || len > ROE_MENU_MAX_BYTES {
+        return Err(format!("not an RoE menu table ({len} bytes)"));
+    }
+    Ok(())
+}
+
+/// Raw bytes of the game's RoE menu table, sent as binary rather than JSON.
+#[tauri::command]
+fn read_roe_menu(ffxi_path: String) -> Result<tauri::ipc::Response, String> {
+    let path = roe_menu_path(&ffxi_path);
+    let bytes = fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    check_roe_menu_size(bytes.len()).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
 #[tauri::command]
 fn write_text_file(path: String, contents: String) -> Result<(), String> {
     if let Some(parent) = Path::new(&path).parent() {
@@ -539,6 +564,7 @@ pub fn run() {
             ipc_status,
             fetch_text,
             read_text_file,
+            read_roe_menu,
             write_text_file,
             delete_file,
             list_dir,
@@ -577,5 +603,19 @@ mod tests {
         assert_eq!(parse_tasklist_name(hit).as_deref(), Some("roexi.exe"));
         let miss = "INFO: No tasks are running which match the specified criteria.\r\n";
         assert_eq!(parse_tasklist_name(miss), None);
+    }
+
+    #[test]
+    fn the_roe_menu_is_always_rom_307_24_under_the_game_folder() {
+        let p = roe_menu_path(r"E:\PlayOnline\SquareEnix\FINAL FANTASY XI\");
+        assert!(p.ends_with(Path::new("ROM").join("307").join("24.DAT")));
+    }
+
+    #[test]
+    fn only_whole_records_of_a_sane_size_count_as_a_menu() {
+        assert!(check_roe_menu_size(5120 * 1024).is_ok());
+        assert!(check_roe_menu_size(0).is_err());
+        assert!(check_roe_menu_size(5121).is_err());
+        assert!(check_roe_menu_size(5120 * 4096).is_err());
     }
 }

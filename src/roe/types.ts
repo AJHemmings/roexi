@@ -22,6 +22,8 @@ export type Box = {
   server?: string;
   av?: string;
   apath?: string;
+  /** windower.ffxi_path from the addon (0.6.0+): where the live RoE menu file is read from. */
+  fpath?: string;
   active?: RoeActive[];
   activeAt?: number;
   donePages?: Record<number, number[]>;

@@ -6,6 +6,8 @@ import NavRail, { type Section } from './NavRail';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useSettings } from './settings';
 import { getMode, applyWindowSize, watchMaximized } from './windowSize';
+import { useBoxes } from './bridge';
+import { loadLiveMenu } from './roe/liveMenu';
 import RecordsView from './views/RecordsView';
 import SetsView from './views/SetsView';
 import StatsView from './views/StatsView';
@@ -17,6 +19,18 @@ const VIEWS: Record<Section, ReactElement> = {
   stats: <StatsView />,
   settings: <SettingsView />,
 };
+
+// Re-reads the game's RoE menu whenever the set of connected characters changes (a reconnect after a game
+// patch included), not on every RoE update. Its own component so box updates don't re-render the app.
+function LiveMenuWatcher() {
+  const boxes = useBoxes();
+  const key = boxes.map((b) => `${b.conn}:${b.fpath ?? ''}`).join('|');
+  useEffect(() => {
+    const fpath = boxes.find((b) => b.fpath)?.fpath;
+    if (fpath) void loadLiveMenu(fpath);
+  }, [key]);
+  return null;
+}
 
 export default function App() {
   const [section, setSection] = useState<Section>('records');
@@ -47,6 +61,7 @@ export default function App() {
   }, []);
   return (
     <MotionConfig reducedMotion="user">
+      <LiveMenuWatcher />
       <div className="le-bg" />
       <div ref={shellRef} className="fixed inset-0 flex flex-col text-fg-2 @container">
         <TitleBar />

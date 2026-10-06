@@ -52,6 +52,14 @@ describe('applyFrame', () => {
     expect(r.box).toMatchObject({ conn: 7, id: 1001, name: 'Aldric', main: 'WAR', mainLvl: 99, sub: 'SAM', subLvl: 49, zone: 230, zoneName: "Southern San d'Oria", server: 'Asura', av: '0.1.0', lastSeen: now });
   });
 
+  it("hello carries the game's folder (fpath), and a later self without one keeps it", () => {
+    const withPath = applyFrame(undefined, 7, parseFrame(hello({ fpath: 'E:\\PlayOnline\\SquareEnix\\FINAL FANTASY XI\\' })) as StateFrame, now)!.box;
+    expect(withPath.fpath).toBe('E:\\PlayOnline\\SquareEnix\\FINAL FANTASY XI\\');
+    const kept = applyFrame(withPath, 7, parseFrame(hello({ t: 'self' })) as StateFrame, now + 1)!.box;
+    expect(kept.fpath).toBe('E:\\PlayOnline\\SquareEnix\\FINAL FANTASY XI\\');
+    expect(parseFrame(hello({ fpath: 42 })) as { fpath?: string }).toMatchObject({ fpath: undefined });
+  });
+
   it('roe and roedone are ignored before hello', () => {
     expect(applyFrame(undefined, 7, roeFrame as StateFrame, now)).toBeNull();
     expect(applyFrame(undefined, 7, doneFrame as StateFrame, now)).toBeNull();
