@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCatalog } from '../roe/catalog';
+import { buildCatalog, relist } from '../roe/catalog';
 import type { CatalogEntry } from '../roe/types';
 
 const ENTRIES: CatalogEntry[] = [
@@ -51,5 +51,37 @@ describe('buildCatalog', () => {
 
   it('isAddable is true for an id not in the catalog at all, since it only checks the auto range', () => {
     expect(catalog.isAddable(99999)).toBe(true);
+  });
+
+  it("isAddable is false for an objective the game's menu doesn't list right now", () => {
+    const withEvent = buildCatalog([...ENTRIES, { id: 2999, n: 'Echoes of Creation (VB)', cat: 'Special Events', sub: "Vana'bout Round", unlisted: true }]);
+    expect(withEvent.isAddable(2999)).toBe(false);
+    expect(withEvent.isAddable(1)).toBe(true);
+  });
+});
+
+describe('relist', () => {
+  const entries: CatalogEntry[] = [
+    { id: 1, n: 'First Step Forward' },
+    { id: 2999, n: 'Echoes of Creation (VB)', unlisted: true },
+    { id: 4013, n: 'Gain Experience', auto: true, unlisted: true },
+  ];
+
+  it("marks exactly what the game's live menu doesn't list", () => {
+    const live = relist(entries, new Set([1, 2999]));
+    expect(live.map((e) => [e.id, e.unlisted ?? false])).toEqual([[1, false], [2999, false], [4013, true]]);
+    expect('unlisted' in live[1]).toBe(false);
+    expect(relist(entries, new Set([2999]))[0]).toMatchObject({ id: 1, unlisted: true });
+  });
+
+  it('keeps the same object for an entry whose status did not change', () => {
+    const live = relist(entries, new Set([1]));
+    expect(live[0]).toBe(entries[0]);
+    expect(live[1]).toBe(entries[1]);
+  });
+
+  it('feeds isAddable once rebuilt: an event the game lists again becomes addable', () => {
+    expect(buildCatalog(entries).isAddable(2999)).toBe(false);
+    expect(buildCatalog(relist(entries, new Set([1, 2999]))).isAddable(2999)).toBe(true);
   });
 });

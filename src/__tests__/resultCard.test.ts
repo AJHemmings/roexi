@@ -10,7 +10,7 @@ const byId = new Map<number, CatalogEntry>([
 ]);
 
 const add = (over: Partial<AddCharResult> = {}): AddCharResult => ({
-  name: 'Aldric', status: 'ok', skipAuto: [], skipActive: [], skipDone: [], added: [], notAccepted: [], ...over,
+  name: 'Aldric', status: 'ok', skipAuto: [], skipUnlisted: [], skipActive: [], skipDone: [], added: [], notAccepted: [], ...over,
 });
 
 const remove = (over: Partial<RemoveCharResult> = {}): RemoveCharResult => ({
@@ -41,6 +41,10 @@ describe('addLine', () => {
 
   it('falls back to "nothing to do" when every list is empty', () => {
     expect(addLine(add(), byId)).toBe('Aldric: nothing to do');
+  });
+
+  it("says when an objective was skipped because the game's menu doesn't list it right now", () => {
+    expect(addLine(add({ added: [1], skipUnlisted: [2] }), byId)).toBe("Aldric: added Sortie A · not in the game's menu right now: Sortie B");
   });
 });
 

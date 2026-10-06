@@ -1,6 +1,7 @@
-// Runtime catalog loader. buildCatalog is pure and tested directly; loadCatalog/useCatalog
-// are the thin fetch+hook wrapper that bridge/index.ts also uses this pattern for.
-import { useEffect, useState } from 'react';
+// Runtime catalog loader. buildCatalog and relist are pure and tested directly; loadCatalog/useCatalog
+// are the thin fetch+hook wrapper (the same useSyncExternalStore pattern as bridge/index.ts), and
+// applyLiveMenu swaps in the game's live menu once liveMenu.ts has read it.
+import { useEffect, useSyncExternalStore } from 'react';
 import { isAutoId, catOf, subOf } from './types';
 import type { CatalogEntry } from './types';
 
@@ -40,28 +41,52 @@ export function buildCatalog(entries: CatalogEntry[]): Catalog {
     return entries.filter((e) => e.n.toLowerCase().includes(needle));
   }
 
-  const isAddable = (id: number): boolean => !isAutoId(id);
+  // Auto dailies are assigned by the game; unlisted ones aren't in its RoE menu right now (spec 2026-10-06 §8).
+  const isAddable = (id: number): boolean => !isAutoId(id) && !byId.get(id)?.unlisted;
 
   return { entries, byId, tree, search, isAddable };
 }
 
+/**
+ * Pure: entries with `unlisted` recomputed from the ids the game's live RoE menu lists (spec 2026-10-06 §8).
+ * Entries whose status doesn't change keep their identity.
+ */
+export function relist(entries: CatalogEntry[], listed: ReadonlySet<number>): CatalogEntry[] {
+  return entries.map((e) => {
+    const unlisted = !listed.has(e.id);
+    if ((e.unlisted === true) === unlisted) return e;
+    if (unlisted) return { ...e, unlisted: true };
+    const copy = { ...e };
+    delete copy.unlisted;
+    return copy;
+  });
+}
+
 let cached: Catalog | null = null;
+/** The game's live menu, once read; applied to the catalog whenever it (re)loads. */
+let liveListed: ReadonlySet<number> | null = null;
+const subs = new Set<() => void>();
+const publish = (c: Catalog) => { cached = c; subs.forEach((f) => f()); };
+
 export async function loadCatalog(): Promise<Catalog> {
   if (cached) return cached;
   const res = await fetch('/roe_catalog.json');
   const data = (await res.json()) as { entries: CatalogEntry[] };
-  cached = buildCatalog(data.entries);
-  return cached;
+  if (!cached) publish(buildCatalog(liveListed ? relist(data.entries, liveListed) : data.entries));
+  return cached!;
 }
 
-/** null while loading; loads once and is shared by every caller. */
+/** Replace the build-time snapshot with the game's live menu (liveMenu.ts). */
+export function applyLiveMenu(listed: ReadonlySet<number>): void {
+  liveListed = listed;
+  if (cached) publish(buildCatalog(relist(cached.entries, listed)));
+}
+
+/** null while loading; loads once and is shared by every caller. Re-renders when the live menu arrives. */
 export function useCatalog(): Catalog | null {
-  const [catalog, setCatalog] = useState<Catalog | null>(cached);
+  const catalog = useSyncExternalStore((cb) => { subs.add(cb); return () => { subs.delete(cb); }; }, () => cached, () => cached);
   useEffect(() => {
-    if (cached) return;
-    let alive = true;
-    loadCatalog().then((c) => { if (alive) setCatalog(c); }).catch((e: unknown) => console.warn('[roexi] catalog load failed', e));
-    return () => { alive = false; };
+    if (!cached) loadCatalog().catch((e: unknown) => console.warn('[roexi] catalog load failed', e));
   }, []);
   return catalog;
 }

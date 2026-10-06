@@ -1,6 +1,6 @@
 _addon.name = 'roexi'
 _addon.author = 'Mak'
-_addon.version = '0.5.0-beta'
+_addon.version = '0.6.0-beta'
 _addon.commands = {'roexi'}
 
 local socket = require('socket')
@@ -143,6 +143,7 @@ local function build_self(kind)
         .. ',"server":"' .. esc(server_name) .. '"'
         .. ',"av":"' .. esc(_addon.version) .. '"'
         .. ',"apath":"' .. esc(windower.addon_path) .. '"'
+        .. ',"fpath":"' .. esc(windower.ffxi_path) .. '"'
         .. '}\n'
 end
 

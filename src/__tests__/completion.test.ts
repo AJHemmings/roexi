@@ -46,53 +46,53 @@ describe('isCompleted', () => {
 
 describe('completionFor', () => {
   it('counts one-time objectives per category and subcategory', () => {
-    const comp = completionFor(char('A', { doneIds: new Set([1, 3]) }), entries, 'one-time');
+    const comp = completionFor(char('A', { doneIds: new Set([1, 3]) }), entries, ['one-time']);
     expect(comp.overall).toEqual({ done: 2, total: 3, unknown: 0 });
     expect(comp.byCat.get('Tutorial')).toEqual({ done: 2, total: 3, unknown: 0 });
     expect(comp.bySub.get('Tutorial::Missions (Zilart)')).toEqual({ done: 1, total: 2, unknown: 0 });
     expect(left(comp.overall)).toBe(1);
   });
   it('counts a repeatable completed once as done', () => {
-    expect(completionFor(char('A', { doneIds: new Set([4]) }), entries, 'repeatable').overall).toEqual({ done: 1, total: 1, unknown: 0 });
+    expect(completionFor(char('A', { doneIds: new Set([4]) }), entries, ['repeatable']).overall).toEqual({ done: 1, total: 1, unknown: 0 });
   });
   it('keeps events out of one-time even when flagged repeat:false', () => {
-    const comp = completionFor(char('A', { doneIds: new Set([5]) }), entries, 'one-time');
+    const comp = completionFor(char('A', { doneIds: new Set([5]) }), entries, ['one-time']);
     expect(comp.overall.done).toBe(0);
-    expect(completionFor(char('A', { doneIds: new Set([5]) }), entries, 'event').overall).toEqual({ done: 1, total: 2, unknown: 0 });
+    expect(completionFor(char('A', { doneIds: new Set([5]) }), entries, ['event']).overall).toEqual({ done: 1, total: 2, unknown: 0 });
   });
   it('counts unknown pages as left, never done', () => {
-    const comp = completionFor(char('A', { doneIds: new Set([1]), donePagesKnown: new Set() }), entries, 'one-time');
+    const comp = completionFor(char('A', { doneIds: new Set([1]), donePagesKnown: new Set() }), entries, ['one-time']);
     expect(comp.overall).toEqual({ done: 0, total: 3, unknown: 3 });
   });
   it('ignores done ids that are not in the catalog', () => {
-    expect(completionFor(char('A', { doneIds: new Set([1, 2985, 4085]) }), entries, 'one-time').overall.done).toBe(1);
+    expect(completionFor(char('A', { doneIds: new Set([1, 2985, 4085]) }), entries, ['one-time']).overall.done).toBe(1);
   });
   it('tallies an entry with no cat/sub under Uncategorized', () => {
-    expect(completionFor(char('A'), entries, 'unclassified').byCat.get('Uncategorized')).toEqual({ done: 0, total: 1, unknown: 0 });
-    expect(categoriesFor(entries, 'unclassified')).toEqual(['Combat (Wide Area)', 'Uncategorized']);
+    expect(completionFor(char('A'), entries, ['unclassified']).byCat.get('Uncategorized')).toEqual({ done: 0, total: 1, unknown: 0 });
+    expect(categoriesFor(entries, ['unclassified'])).toEqual(['Combat (Wide Area)', 'Uncategorized']);
   });
 });
 
 describe('quickStats', () => {
   it('is exactly the Stats One-time Overall figure', () => {
     const c = char('A', { doneIds: new Set([1, 4, 5]) });
-    expect(quickStats(c, entries)).toEqual(completionFor(c, entries, 'one-time').overall);
+    expect(quickStats(c, entries)).toEqual(completionFor(c, entries, ['one-time']).overall);
   });
 });
 
 describe('catalog helpers', () => {
   it('unclassifiedCount counts entries with no known repeat flag', () => expect(unclassifiedCount(entries)).toBe(2));
   it('categoriesFor lists categories that have entries of the kind, sorted', () => {
-    expect(categoriesFor(entries, 'one-time')).toEqual(['Tutorial']);
-    expect(categoriesFor(entries, 'event')).toEqual(['Special Events', "Vana'versary"]);
+    expect(categoriesFor(entries, ['one-time'])).toEqual(['Tutorial']);
+    expect(categoriesFor(entries, ['event'])).toEqual(['Special Events', "Vana'versary"]);
   });
   it('subsFor lists a category\'s subcategories for the kind, sorted', () => {
-    expect(subsFor(entries, 'one-time', 'Tutorial')).toEqual(['Basics', 'Missions (Zilart)']);
+    expect(subsFor(entries, ['one-time'], 'Tutorial')).toEqual(['Basics', 'Missions (Zilart)']);
   });
   it('cellEntries: Overall, a category, and a subcategory', () => {
-    expect(cellEntries(entries, 'one-time', null, null).map((e) => e.id)).toEqual([1, 2, 3]);
-    expect(cellEntries(entries, 'one-time', 'Tutorial', null).map((e) => e.id)).toEqual([1, 2, 3]);
-    expect(cellEntries(entries, 'one-time', 'Tutorial', 'Basics').map((e) => e.id)).toEqual([3]);
+    expect(cellEntries(entries, ['one-time'], null, null).map((e) => e.id)).toEqual([1, 2, 3]);
+    expect(cellEntries(entries, ['one-time'], 'Tutorial', null).map((e) => e.id)).toEqual([1, 2, 3]);
+    expect(cellEntries(entries, ['one-time'], 'Tutorial', 'Basics').map((e) => e.id)).toEqual([3]);
   });
 });
 
@@ -100,13 +100,13 @@ describe('leftToDo', () => {
   const scope = [char('A', { doneIds: new Set([1]) }), char('B', { doneIds: new Set([1, 2]), active: [{ id: 3, p: 0 }] })];
 
   it('lists what at least one character can still take, for one kind', () => {
-    expect(leftToDo(scope, entries, byId, 'one-time').map((e) => e.id)).toEqual([2, 3]);
+    expect(leftToDo(scope, entries, byId, ['one-time']).map((e) => e.id)).toEqual([2, 3]);
   });
   it('agrees with Library Remaining: per kind it is Remaining filtered to that kind, and the union is all of Remaining', () => {
     const remaining = entries.filter((e) => showInRemaining(scope, e.id, byId)).map((e) => e.id).sort((a, b) => a - b);
     const union: number[] = [];
     for (const k of KINDS) {
-      const ids = leftToDo(scope, entries, byId, k).map((e) => e.id);
+      const ids = leftToDo(scope, entries, byId, [k]).map((e) => e.id);
       expect(ids).toEqual(remaining.filter((id) => kindOf(byId.get(id)!) === k));
       union.push(...ids);
     }
@@ -130,4 +130,23 @@ describe('sortLeft', () => {
     expect(sortLeft(list, 'category').map((e) => e.id)).toEqual([4, 3, 1, 2]);
   });
   it('name: alphabetical', () => expect(sortLeft(list, 'name').map((e) => e.n)).toEqual(['Basics', 'Vanquish', 'Zilart 1', 'Zilart 2']));
+});
+
+describe('kind lists', () => {
+  it('completionFor counts every selected kind together', () => {
+    const comp = completionFor(char('A', { doneIds: new Set([1, 4]) }), entries, ['one-time', 'repeatable']);
+    expect(comp.overall).toEqual({ done: 2, total: 4, unknown: 0 });
+    expect(comp.byCat.get('Combat (Wide Area)')).toEqual({ done: 1, total: 1, unknown: 0 });
+  });
+  it('categoriesFor lists the union of the selected kinds, sorted', () => {
+    expect(categoriesFor(entries, ['one-time', 'event'])).toEqual(['Special Events', 'Tutorial', "Vana'versary"]);
+  });
+  it('an empty list counts nothing', () => {
+    expect(completionFor(char('A'), entries, []).overall).toEqual({ done: 0, total: 0, unknown: 0 });
+  });
+  it('leftToDo with every kind is exactly Library Remaining', () => {
+    const scope = [char('A', { doneIds: new Set([1]) })];
+    const remaining = entries.filter((e) => showInRemaining(scope, e.id, byId) && kindOf(e) !== null).map((e) => e.id);
+    expect(leftToDo(scope, entries, byId, KINDS).map((e) => e.id)).toEqual(remaining);
+  });
 });

@@ -1,25 +1,18 @@
-// Pure logic behind scripts/build-catalog.mjs: parse the id list and the BG-Wiki page, then join
-// them by normalised name. No Node imports, so it runs unchanged under Vitest.
+// Pure logic behind scripts/build-catalog.mjs: parse the BG-Wiki page, then join it to the client's
+// RoE table by normalised name. No Node imports, so it runs unchanged under Vitest.
 //
-// Sources (see data/LICENSES.md):
-//   data/roe_mapping.lua  -> the authority for ids and names (retail-derived)
-//   BG-Wiki               -> categories, goal, repeat flag and rewards, joined by normalised name
-// Nothing here may add or rename an id. The wiki only decorates ids that exist in the mapping.
+// Sources (see data/LICENSES.md), all from data/roe_client.json unless noted:
+//   entries  -> the authority for ids, names, repeat flag, goal, rewards and text (client ROM/307/16.DAT)
+//   menu     -> the game's own category and section for everything its RoE menu lists (ROM/307/24.DAT)
+//   BG-Wiki  -> category and section for what the menu doesn't list right now (event objectives between
+//               events, the auto dailies), joined by normalised name
+// Nothing here may add or rename an id. The wiki only files ids that exist in the client table.
 
 import { normalizeName, editDistance } from './normalize.ts';
+import type { ClientEntry } from './clientDat.ts';
+import type { MenuSection } from './clientMenu.ts';
 
-export type MappingEntry = { id: number; n: string };
-export type WikiRow = {
-  cat: string | null;
-  sub: string | null;
-  name: string;
-  text: string;
-  goal?: number;
-  repeat?: boolean;
-  sparks?: number;
-  exp?: number;
-  acc?: number;
-};
+export type WikiRow = { cat: string | null; sub: string | null; name: string };
 export type CatalogEntry = {
   id: number;
   n: string;
@@ -32,20 +25,35 @@ export type CatalogEntry = {
   acc?: number;
   text?: string;
   auto?: boolean;
+  unlisted?: boolean;
 };
 export type JoinReport = {
   exact: number;
   fuzzy: number;
   fallback: number;
   none: number;
+  retired: number;
+  internal: number;
+  menuPlaced: number;
   unmatchedIds: string[];
   unmatchedWiki: string[];
 };
-/** [name pattern, category, subcategory, repeat flag to set when the wiki gave none]. */
-export type FallbackRule = [RegExp, string, string | ((m: RegExpMatchArray) => string), boolean?];
+/** [name pattern, category, subcategory]. */
+export type FallbackRule = [RegExp, string, string | ((m: RegExpMatchArray) => string)];
 
 // Same value as AUTO_RANGE in src/roe/types.ts (the canonical constant; created in a later task). Keep them equal.
 export const AUTO_RANGE: readonly [number, number] = [4008, 4021];
+
+// Removed from the game with the June 2025 version update (item-level Limbus replaced the old Limbus
+// content): https://www.bg-wiki.com/ffxi/Records_of_Eminence#Content_(Limbus). The client still carries
+// their records, so they're dropped by id.
+export const RETIRED: readonly number[] = [772, 773, 774, 775, 776, 777, 778, 779, 780, 781, 782, 783];
+
+// The client also carries internal flags the game sets by itself and never lists in its menu: the
+// "Scenarios N" / "Unlock Scenarios" story trackers, Mentor License Unlock, the "Escutcheon: X" quest flags
+// and Lu Shang's rod. They are the only records with a goal of 0, which no real objective has, and their
+// descriptions are blank or internal references ("926", "Records of Eminence Quest 2").
+const isInternalFlag = (c: ClientEntry): boolean => c.goal === 0;
 
 // Wiki spellings that differ from the client name for a reason other than a typo.
 // Key: normalised wiki name, value: normalised client name.
@@ -61,6 +69,7 @@ const ALIAS_PAIRS: [string, string][] = [
   ['asquire hallmarks vb', 'obtain hallmarks vb'],
   ['receive damage vb', 'damage received vb'],
   ['north gustaberg uc', 'conflict north gustaberg uc'],
+  ['dynamis divergence participation m', 'dynamis d instance participation m'],
 ];
 export const ALIASES: Map<string, string> = new Map(
   ALIAS_PAIRS.map(([w, c]): [string, string] => [normalizeName(w), normalizeName(c)]),
@@ -68,16 +77,13 @@ export const ALIASES: Map<string, string> = new Map(
 
 // Category guesses for ids the wiki does not list, keyed on the client name.
 export const FALLBACK: FallbackRule[] = [
-  // Mission chapters are one-time: you finish chapter N once. The wiki documents unlocks, not each
-  // chapter, so these ids never get a repeat flag from the join.
-  [/^(san d'oria|bastok|windurst) rank/i, 'Tutorial', (m) => `Missions (${m[1]})`, false],
-  [/^rise of the zilart/i, 'Tutorial', 'Missions (Zilart)', false],
-  [/^chains of promathia/i, 'Tutorial', 'Missions (Promathia)', false],
-  [/^treasures of aht urhgan/i, 'Tutorial', 'Missions (Aht Urhgan)', false],
-  [/^wings of the goddess/i, 'Tutorial', 'Missions (Altana)', false],
-  [/^seekers of adoulin/i, 'Tutorial', 'Missions (Adoulin)', false],
-  // No source lists it; filed beside Mentor License (1060), the objective it unlocks.
-  [/^mentor license unlock$/i, 'Tutorial', 'Intermediate', false],
+  // Mission chapters: the wiki documents unlocks, not each chapter.
+  [/^(san d'oria|bastok|windurst) rank/i, 'Tutorial', (m) => `Missions (${m[1]})`],
+  [/^rise of the zilart/i, 'Tutorial', 'Missions (Zilart)'],
+  [/^chains of promathia/i, 'Tutorial', 'Missions (Promathia)'],
+  [/^treasures of aht urhgan/i, 'Tutorial', 'Missions (Aht Urhgan)'],
+  [/^wings of the goddess/i, 'Tutorial', 'Missions (Altana)'],
+  [/^seekers of adoulin/i, 'Tutorial', 'Missions (Adoulin)'],
   [/\(uc\)$/i, 'Unity', 'Unity'],
   [/\(vbd\)$/i, 'Special Events', "Vana'bout Daily"],
   [/\(vb\)$/i, 'Special Events', "Vana'bout Round"],
@@ -88,22 +94,9 @@ export const FALLBACK: FallbackRule[] = [
   [/^subj(ugation|\.):/i, 'Combat (Region)', 'Subjugation'],
   [/^spoils/i, 'Combat (Wide Area)', 'Combat (Spoils)'],
   [/^harvesting:/i, 'Harvesting', 'Harvesting'],
-  [/scenarios/i, 'Other', 'Scenarios'],
-  [/^escutcheon:/i, 'Crafting', 'Escutcheons'],
   [/^fame:/i, 'Achievements', 'Fame'],
   [/^region:/i, 'Fishing', 'Fishing: Tenacity'],
 ];
-
-/** Parse `[id] = "name"` lines out of roe_mapping.lua; sorted by id. Throws when nothing parses. */
-export function parseMapping(luaText: string): MappingEntry[] {
-  const out: MappingEntry[] = [];
-  const re = /^\s*\[(\d+)\]\s*=\s*"((?:[^"\\]|\\.)*)"/gm;
-  for (const m of luaText.matchAll(re)) {
-    out.push({ id: Number(m[1]), n: m[2].replace(/\\"/g, '"').replace(/\\'/g, "'") });
-  }
-  if (out.length === 0) throw new Error('no entries parsed from the mapping text');
-  return out.sort((a, b) => a.id - b.id);
-}
 
 /** Strip tags, decode the entities the wiki uses, collapse whitespace. */
 export function decode(s: string): string {
@@ -117,10 +110,6 @@ export function decode(s: string): string {
 }
 
 const cells = (tr: string): string[] => [...tr.matchAll(/<t[hd][^>]*>(.*?)<\/t[hd]>/gs)].map((m) => decode(m[1]));
-const num = (s: string): number | undefined => {
-  const v = Number(s.replace(/,/g, ''));
-  return Number.isFinite(v) && s !== '' ? v : undefined;
-};
 
 /** Walk h2/h3/table in document order; return one row per objective with its category path. */
 export function parseWiki(html: string): WikiRow[] {
@@ -150,16 +139,7 @@ export function parseWiki(html: string): WikiRow[] {
       const c = cells(tr);
       const name = get(c, 'Name');
       if (!name) continue;
-      rows.push({
-        cat, sub,
-        name: sharedLetter ? name.replace(/\s*\(UC\)$/, ` ${sharedLetter} (UC)`) : name,
-        text: get(c, 'Text'),
-        goal: num(get(c, 'Obj')),
-        repeat: 'Repeat' in idx ? get(c, 'Repeat').toLowerCase().startsWith('y') : (cat === 'Unity' ? true : undefined),
-        sparks: num(get(c, 'Sparks')),
-        exp: num(get(c, 'Exp')),
-        acc: num(get(c, 'Acco')),
-      });
+      rows.push({ cat, sub, name: sharedLetter ? name.replace(/\s*\(UC\)$/, ` ${sharedLetter} (UC)`) : name });
     }
   }
   return rows;
@@ -169,12 +149,6 @@ function decorate(r: WikiRow): Partial<CatalogEntry> {
   const d: Partial<CatalogEntry> = {};
   if (r.cat !== null) d.cat = r.cat;
   if (r.sub !== null) d.sub = r.sub;
-  if (r.repeat !== undefined) d.repeat = r.repeat;
-  if (r.goal !== undefined) d.goal = r.goal;
-  if (r.sparks !== undefined) d.sparks = r.sparks;
-  if (r.exp !== undefined) d.exp = r.exp;
-  if (r.acc !== undefined) d.acc = r.acc;
-  if (r.text) d.text = r.text;
   return d;
 }
 
@@ -201,23 +175,12 @@ export function isTypoPair(a: string, b: string): boolean {
   return x.length >= 5 && y.length >= 5 && editDistance(x, y) <= 2;
 }
 
-// The game lists Unity Wanted NMs in three sections, but the wiki only documents the first, so tiers 2
-// and 3 used to fall through to the generic "Unity" bucket. Each tier is a fixed block of ids in the
-// game's record table, so they're filed by id. Only Subjugation names count: the tier 3 block also
-// holds the Escha Conflict objectives (901-912). The in-game section names aren't in any source we
-// have, hence the neutral I/II/III.
-export const UNITY_WANTED_TIERS: [number, number, string][] = [
-  [817, 837, 'Unity (Wanted I)'],
-  [854, 869, 'Unity (Wanted II)'],
-  [891, 924, 'Unity (Wanted III)'],
-];
-
-function unityWantedTier(e: CatalogEntry): string | null {
-  if (!/^subj(ugation|\.):/i.test(e.n)) return null;
-  return UNITY_WANTED_TIERS.find(([lo, hi]) => e.id >= lo && e.id <= hi)?.[2] ?? null;
-}
-
-export function joinSources(mapping: MappingEntry[], wikiRows: WikiRow[]): { entries: CatalogEntry[]; report: JoinReport } {
+/**
+ * `menu` = the game's RoE menu (clientMenu.ts). Everything it lists takes the menu's category and section,
+ * and everything it doesn't list right now is marked `unlisted` (the wiki/fallback filing still applies to
+ * those). Without a menu, nothing is marked.
+ */
+export function joinSources(client: ClientEntry[], wikiRows: WikiRow[], menu?: readonly MenuSection[]): { entries: CatalogEntry[]; report: JoinReport } {
   const wikiBy = new Map<string, WikiRow[]>();
   for (const r of wikiRows) {
     const k = normalizeName(r.name);
@@ -226,9 +189,14 @@ export function joinSources(mapping: MappingEntry[], wikiRows: WikiRow[]): { ent
     if (!list) { list = []; wikiBy.set(key, list); }
     list.push(r);
   }
-  const report: JoinReport = { exact: 0, fuzzy: 0, fallback: 0, none: 0, unmatchedIds: [], unmatchedWiki: [] };
+  const report: JoinReport = { exact: 0, fuzzy: 0, fallback: 0, none: 0, retired: 0, internal: 0, menuPlaced: 0, unmatchedIds: [], unmatchedWiki: [] };
   const used = new Set<WikiRow>();
-  const entries: CatalogEntry[] = mapping.map((e) => ({ id: e.id, n: e.n }));
+  const entries: CatalogEntry[] = [];
+  for (const c of client) {
+    if (RETIRED.includes(c.id)) { report.retired++; continue; }
+    if (isInternalFlag(c)) { report.internal++; continue; }
+    entries.push({ id: c.id, n: c.n, repeat: c.repeat, goal: c.goal, sparks: c.sparks, exp: c.exp, acc: c.acc, ...(c.text ? { text: c.text } : {}) });
+  }
   let pending: CatalogEntry[] = [];
 
   // Pass 1: exact normalised name; the k-th duplicate on one side pairs with the k-th on the other
@@ -267,12 +235,11 @@ export function joinSources(mapping: MappingEntry[], wikiRows: WikiRow[]): { ent
   // Pass 3: category by name shape only.
   for (const e of pending) {
     let matched = false;
-    for (const [re, cat, sub, repeat] of FALLBACK) {
+    for (const [re, cat, sub] of FALLBACK) {
       const m = e.n.match(re);
       if (!m) continue;
       e.cat = cat;
       e.sub = typeof sub === 'function' ? sub(m) : sub;
-      if (repeat !== undefined && e.repeat === undefined) e.repeat = repeat;
       matched = true;
       break;
     }
@@ -280,11 +247,13 @@ export function joinSources(mapping: MappingEntry[], wikiRows: WikiRow[]): { ent
     report.unmatchedIds.push(`${e.id}:${e.n}`);
   }
   for (const r of wikiRows) if (!used.has(r)) report.unmatchedWiki.push(`${r.cat}/${r.sub}:${r.name}`);
+  const placed = new Map<number, MenuSection>();
+  for (const s of menu ?? []) for (const id of s.ids) if (!placed.has(id)) placed.set(id, s);
   for (const e of entries) {
     if (e.id >= AUTO_RANGE[0] && e.id <= AUTO_RANGE[1]) { e.auto = true; e.cat = 'Other'; e.sub = 'Daily Objectives'; }
-    const tier = unityWantedTier(e);
-    // Every Wanted tier is repeatable like tier I; only the wiki's own flag (tier I rows) wins over this.
-    if (tier) { e.cat = 'Unity'; e.sub = tier; if (e.repeat === undefined) e.repeat = true; }
+    const s = placed.get(e.id);
+    if (s) { e.cat = s.cat; e.sub = s.sub; report.menuPlaced++; }
+    else if (menu) e.unlisted = true;
   }
   return { entries, report };
 }

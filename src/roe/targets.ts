@@ -15,7 +15,7 @@ export function resolveTargets(known: KnownChar[], names: string[]): KnownChar[]
   return known.filter((c) => names.includes(c.name));
 }
 
-export type AddBlockReason = 'auto' | 'active' | 'completed' | 'offline' | 'full';
+export type AddBlockReason = 'auto' | 'unlisted' | 'active' | 'completed' | 'offline' | 'full';
 
 // Pure: why `char` can't take `id` right now, or null if an add would actually be sent. For a single
 // id only — its 'full' result doesn't predict what happens with a multi-id batch. Derived from
@@ -25,6 +25,7 @@ export type AddBlockReason = 'auto' | 'active' | 'completed' | 'offline' | 'full
 export function addBlockReason(char: KnownChar, id: number, byId: Map<number, CatalogEntry>): AddBlockReason | null {
   const [plan] = buildAddPlan([char], [id], byId);
   if (plan.skipAuto.includes(id)) return 'auto';
+  if (plan.skipUnlisted.includes(id)) return 'unlisted';
   if (plan.skipActive.includes(id)) return 'active';
   if (plan.skipDone.includes(id)) return 'completed';
   if (plan.status === 'offline') return 'offline';

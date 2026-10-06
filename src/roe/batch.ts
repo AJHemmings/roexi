@@ -44,7 +44,7 @@ export async function runAdd(targets: KnownChar[], ids: number[], byId: Map<numb
 }
 
 async function runOneAdd(plan: AddPlan, targets: KnownChar[]): Promise<AddCharResult> {
-  const base = { name: plan.name, skipAuto: plan.skipAuto, skipActive: plan.skipActive, skipDone: plan.skipDone };
+  const base = { name: plan.name, skipAuto: plan.skipAuto, skipUnlisted: plan.skipUnlisted, skipActive: plan.skipActive, skipDone: plan.skipDone };
   if (plan.status !== 'ok' || plan.send.length === 0) {
     return { ...base, status: plan.status, added: [], notAccepted: [] };
   }

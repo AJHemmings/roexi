@@ -7,6 +7,7 @@ import { LibrarySummary } from '../components/LibrarySummary';
 import { doneState } from '../roe/bitmap';
 import { formatProgress } from '../roe/format';
 import { showInRemaining } from '../roe/locks';
+import { NOT_LIVE_HELP } from '../roe/copy';
 import type { Catalog } from '../roe/catalog';
 import type { KnownChar, CatalogEntry } from '../roe/types';
 
@@ -25,6 +26,9 @@ function Badges({ entry }: { entry?: CatalogEntry }) {
   return (
     <>
       {entry.auto && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-field text-fg-4">Daily</span>}
+      {entry.unlisted && !entry.auto && (
+        <span title={NOT_LIVE_HELP} className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-field text-fg-4">Not live</span>
+      )}
       {entry.repeat && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-field text-fg-4">Repeat</span>}
     </>
   );
@@ -35,7 +39,7 @@ function Badges({ entry }: { entry?: CatalogEntry }) {
 function ExpandedLibrary({ id, entry, scope }: { id: number; entry?: CatalogEntry; scope: KnownChar[] }) {
   return (
     <div className="flex flex-col gap-1.5 text-[11px] text-fg-3">
-      {entry?.text && <p className="leading-relaxed">{entry.text}</p>}
+      {entry?.text && <p className="leading-relaxed whitespace-pre-line">{entry.text}</p>}
       {scope.map((c) => {
         const active = c.active.find((a) => a.id === id);
         const done = doneState(c, id);
@@ -100,7 +104,7 @@ export default function LibraryTab({ catalog, scope, query, selected, onToggle, 
                             const dim = entry?.repeat === false && scope.length > 0 && scope.every((c) => doneState(c, id) === 'done');
                             return (
                               <div key={id} className={dim ? 'opacity-50' : undefined}>
-                                <ObjectiveRow id={id} entry={entry} checkbox={!entry?.auto}
+                                <ObjectiveRow id={id} entry={entry} checkbox={catalog.isAddable(id)}
                                   checked={selected.includes(id)} onToggle={() => onToggle(id)}
                                   countLabel={`active ${activeCount}/${scope.length} · done ${doneCount}/${eligible.length}`}
                                   badges={<Badges entry={entry} />}

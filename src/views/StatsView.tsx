@@ -4,7 +4,7 @@ import { useCatalog } from '../roe/catalog';
 import { useCharScope, CharScopeSelect, SCOPE_KEYS } from '../components/CharScope';
 import { useStickyPersisted } from '../sticky';
 import { SectionTabs } from '../ui';
-import { parseViewPrefs, DEFAULT_VIEW, type ViewPrefs, type StatsTab } from '../stats/prefs';
+import { parseViewPrefs, parseChartPrefs, DEFAULT_VIEW, DEFAULT_CHART, type ViewPrefs, type ChartPrefs, type StatsTab, type CompletionKind } from '../stats/prefs';
 import { colorByName } from '../stats/palette';
 import StatsCompletionTab from './StatsCompletionTab';
 import StatsLeftTab from './StatsLeftTab';
@@ -17,10 +17,14 @@ export default function StatsView() {
   const [rawView, setRawView] = useStickyPersisted<unknown>('stats.view', DEFAULT_VIEW);
   const view = useMemo(() => parseViewPrefs(rawView), [rawView]);
   const setView = (patch: Partial<ViewPrefs>) => setRawView((prev: unknown) => ({ ...parseViewPrefs(prev), ...patch }));
+  // Chart prefs live here because their hidden sections apply to Objectives as well as Completion.
+  const [rawChart, setRawChart] = useStickyPersisted<unknown>('stats.chart', DEFAULT_CHART);
+  const chart = useMemo(() => parseChartPrefs(rawChart), [rawChart]);
+  const setChart = (patch: Partial<ChartPrefs>) => setRawChart((prev: unknown) => ({ ...parseChartPrefs(prev), ...patch }));
   const colorOf = useMemo(() => colorByName(known.map((c) => c.name)), [known]);
   // Shared by Completion (highlight + click) and Objectives (what's listed). Not persisted.
   const [cell, setCell] = useState<Cell | null>(null);
-  const setCompletionKind = (completionKind: ViewPrefs['completionKind']) => { setView({ completionKind }); setCell(null); };
+  const setCompletionKinds = (completionKinds: CompletionKind[]) => { setView({ completionKinds }); setCell(null); };
 
   if (known.length === 0) {
     return (
@@ -43,14 +47,14 @@ export default function StatsView() {
       </div>
       {view.tab === 'completion' ? (
         <StatsCompletionTab scope={scope} catalog={catalog} colorOf={colorOf}
-          kind={view.completionKind} setKind={setCompletionKind}
+          kinds={view.completionKinds} setKinds={setCompletionKinds} chart={chart} setChart={setChart}
           selected={cell} onSelect={(c) => { setCell(c); setView({ tab: 'objectives' }); }} />
       ) : view.tab === 'objectives' ? (
-        <StatsObjectivesTab scope={scope} catalog={catalog}
-          kind={view.completionKind} setKind={setCompletionKind} cell={cell} setCell={setCell} />
+        <StatsObjectivesTab scope={scope} catalog={catalog} hidden={chart.hidden}
+          kinds={view.completionKinds} setKinds={setCompletionKinds} cell={cell} setCell={setCell} />
       ) : (
         <StatsLeftTab scope={scope} catalog={catalog} colorOf={colorOf}
-          kind={view.leftKind} setKind={(leftKind) => setView({ leftKind })}
+          kinds={view.leftKinds} setKinds={(leftKinds) => setView({ leftKinds })}
           sort={view.leftSort} setSort={(leftSort) => setView({ leftSort })}
           hiddenCats={view.leftHiddenCats} setHiddenCats={(leftHiddenCats) => setView({ leftHiddenCats })} />
       )}

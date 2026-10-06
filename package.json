@@ -1,7 +1,7 @@
 {
   "name": "roexi",
   "private": true,
-  "version": "0.5.0-beta",
+  "version": "0.6.0-beta",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build:catalog": "node scripts/build-catalog.mjs",
+    "extract:client": "node scripts/extract-client.mjs",
     "addon:install": "node scripts/install-addon.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
