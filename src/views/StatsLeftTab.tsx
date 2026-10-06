@@ -85,7 +85,7 @@ export default function StatsLeftTab({ scope, catalog, colorOf, kind, setKind, s
                   ) : undefined}
                   expanded={(
                     <div className="flex flex-col gap-1 text-[11px] text-fg-3">
-                      {e.text && <p className="leading-relaxed">{e.text}</p>}
+                      {e.text && <p className="leading-relaxed whitespace-pre-line">{e.text}</p>}
                       {many && <span className="text-fg-4">Still left for: {rowWho.join(', ')}</span>}
                     </div>
                   )} />

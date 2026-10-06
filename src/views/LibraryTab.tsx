@@ -35,7 +35,7 @@ function Badges({ entry }: { entry?: CatalogEntry }) {
 function ExpandedLibrary({ id, entry, scope }: { id: number; entry?: CatalogEntry; scope: KnownChar[] }) {
   return (
     <div className="flex flex-col gap-1.5 text-[11px] text-fg-3">
-      {entry?.text && <p className="leading-relaxed">{entry.text}</p>}
+      {entry?.text && <p className="leading-relaxed whitespace-pre-line">{entry.text}</p>}
       {scope.map((c) => {
         const active = c.active.find((a) => a.id === id);
         const done = doneState(c, id);
