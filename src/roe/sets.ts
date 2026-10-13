@@ -77,6 +77,10 @@ export function useSetsLoaded(): boolean {
   return useSyncExternalStore(subscribe, () => loaded, () => loaded);
 }
 
+/** Non-hook reads for code outside React (roe/gameCommands.ts). */
+export function getSets(): RoeSet[] { return sets; }
+export function getSetsLoaded(): boolean { return loaded; }
+
 // Callers must validate with validateSetName() first — this trusts the name is already valid,
 // matching how the rest of this codebase keeps validation at the UI boundary rather than
 // re-checking internally.
