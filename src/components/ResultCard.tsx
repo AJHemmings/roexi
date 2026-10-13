@@ -6,9 +6,15 @@ const nameFor = (byId: Map<number, CatalogEntry>, id: number) => byId.get(id)?.n
 export function addLine(c: AddCharResult, byId: Map<number, CatalogEntry>): string {
   if (c.status === 'offline') return `${c.name}: offline`;
   if (c.status === 'full') return `${c.name}: full (30 active already)`;
+  if (c.status === 'noroom') {
+    const n = c.needed ?? 0;
+    return `${c.name}: not enough room: needs ${n} slot${n === 1 ? '' : 's'}, can free ${c.freeable ?? 0}`;
+  }
   if (c.status === 'no-response') return `${c.name}: no response from the addon (state may still have changed)`;
   if (c.status === 'addon-error') return `${c.name}: addon error`;
   const parts: string[] = [];
+  if (c.cancelled?.length) parts.push(`cancelled to make room: ${c.cancelled.map((id) => nameFor(byId, id)).join(', ')}`);
+  if (c.notCancelled?.length) parts.push(`couldn't cancel: ${c.notCancelled.map((id) => nameFor(byId, id)).join(', ')}`);
   if (c.added.length) parts.push(`added ${c.added.map((id) => nameFor(byId, id)).join(', ')}`);
   if (c.notAccepted.length) parts.push(`not accepted: ${c.notAccepted.map((id) => nameFor(byId, id)).join(', ')}`);
   if (c.skipActive.length) parts.push(`already active: ${c.skipActive.map((id) => nameFor(byId, id)).join(', ')}`);
@@ -29,6 +35,10 @@ export function removeLine(c: RemoveCharResult, byId: Map<number, CatalogEntry>)
   return `${c.name}: ${parts.join(' · ') || 'nothing to do'}`;
 }
 
+export function cardTitle(card: ResultCardData): string {
+  return card.label ?? (card.kind === 'add' ? 'Add result' : 'Remove result');
+}
+
 function CardBody({ card, byId }: { card: ResultCardData; byId: Map<number, CatalogEntry> }) {
   return (
     <>
@@ -47,7 +57,7 @@ export function ResultCards({ byId }: { byId: Map<number, CatalogEntry> }) {
       {results.map((r) => (
         <div key={r.id} className="rounded-xl bg-surface border border-line px-3.5 py-2.5">
           <div className="flex items-start justify-between gap-2 mb-1">
-            <span className="text-[11px] font-bold text-fg uppercase tracking-wide">{r.kind === 'add' ? 'Add result' : 'Remove result'}</span>
+            <span className="text-[11px] font-bold text-fg uppercase tracking-wide">{cardTitle(r)}</span>
             <button onClick={() => dismissResult(r.id)} aria-label="Dismiss" className="le-tap text-fg-4 hover:text-fg-2 leading-none text-base">×</button>
           </div>
           <CardBody card={r} byId={byId} />

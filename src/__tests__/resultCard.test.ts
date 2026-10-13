@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { addLine, removeLine } from '../components/ResultCard';
+import { addLine, removeLine, cardTitle } from '../components/ResultCard';
 import type { AddCharResult, RemoveCharResult } from '../roe/results';
 import type { CatalogEntry } from '../roe/types';
 
@@ -18,6 +18,19 @@ const remove = (over: Partial<RemoveCharResult> = {}): RemoveCharResult => ({
 });
 
 describe('addLine', () => {
+  it('reports noroom with the numbers', () => {
+    expect(addLine(add({ status: 'noroom', needed: 8, freeable: 3 }), byId)).toBe('Aldric: not enough room: needs 8 slots, can free 3');
+    expect(addLine(add({ status: 'noroom', needed: 1, freeable: 0 }), byId)).toBe('Aldric: not enough room: needs 1 slot, can free 0');
+  });
+
+  it('lists what was cancelled to make room before what was added', () => {
+    expect(addLine(add({ cancelled: [1], added: [2] }), byId)).toBe('Aldric: cancelled to make room: Sortie A · added Sortie B');
+  });
+
+  it("lists cancels that didn't land", () => {
+    expect(addLine(add({ cancelled: [1], notCancelled: [2] }), byId)).toBe("Aldric: cancelled to make room: Sortie A · couldn't cancel: Sortie B");
+  });
+
   it('reports offline status', () => {
     expect(addLine(add({ status: 'offline' }), byId)).toBe('Aldric: offline');
   });
@@ -68,5 +81,16 @@ describe('removeLine', () => {
 
   it('falls back to "nothing to do" when every list is empty', () => {
     expect(removeLine(remove(), byId)).toBe('Aldric: nothing to do');
+  });
+});
+
+describe('cardTitle', () => {
+  it('uses the label when there is one', () => {
+    expect(cardTitle({ id: 1, kind: 'add', createdAt: 0, chars: [], label: 'set Ambuscade (in game)' })).toBe('set Ambuscade (in game)');
+  });
+
+  it('falls back to Add result / Remove result', () => {
+    expect(cardTitle({ id: 1, kind: 'add', createdAt: 0, chars: [] })).toBe('Add result');
+    expect(cardTitle({ id: 2, kind: 'remove', createdAt: 0, chars: [] })).toBe('Remove result');
   });
 });
