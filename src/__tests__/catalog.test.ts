@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildCatalog, relist } from '../roe/catalog';
+import { buildCatalog, relist, composeCatalog } from '../roe/catalog';
 import type { CatalogEntry } from '../roe/types';
+import type { ClientEntry } from '../roe/clientDat';
 
 const ENTRIES: CatalogEntry[] = [
   { id: 1, n: 'First Step Forward', cat: 'Tutorial', sub: 'Basics' },
@@ -83,5 +84,52 @@ describe('relist', () => {
   it('feeds isAddable once rebuilt: an event the game lists again becomes addable', () => {
     expect(buildCatalog(entries).isAddable(2999)).toBe(false);
     expect(buildCatalog(relist(entries, new Set([1, 2999]))).isAddable(2999)).toBe(true);
+  });
+});
+
+describe('name-only entries', () => {
+  const gone: CatalogEntry = { id: 3780, n: 'Grow and Harvest (M)', cat: 'Other', sub: 'Monthly Objectives', unlisted: true };
+  const catalog = buildCatalog(ENTRIES, [gone]);
+
+  it('can be looked up by id', () => {
+    expect(catalog.byId.get(3780)?.n).toBe('Grow and Harvest (M)');
+  });
+
+  it('are left out of entries, the tree and search, and are not addable', () => {
+    expect(catalog.entries.some((e) => e.id === 3780)).toBe(false);
+    expect(catalog.tree.find((c) => c.name === 'Other')!.subs.has('Monthly Objectives')).toBe(false);
+    expect(catalog.search('grow')).toEqual([]);
+    expect(catalog.search('#3780')).toEqual([]);
+    expect(catalog.isAddable(3780)).toBe(false);
+  });
+});
+
+describe('composeCatalog', () => {
+  const builtIn: CatalogEntry[] = [
+    { id: 1, n: 'First Step Forward', cat: 'Tutorial', sub: 'Basics' },
+    { id: 3780, n: 'Grow and Harvest (M)', cat: 'Other', sub: 'Monthly Objectives' },
+  ];
+  const menu = [{ cat: 'Tutorial', sub: 'Basics', ids: [1] }, { cat: 'Other', sub: 'Monthly Objectives', ids: [3781] }];
+  const liveEntries: ClientEntry[] = [
+    { id: 1, n: 'First Step Forward', repeat: false, goal: 1, sparks: 1, exp: 1, acc: 0 },
+    { id: 3781, n: 'Mog Garden Items (M)', repeat: false, goal: 3, sparks: 50, exp: 500, acc: 0 },
+  ];
+
+  it('is the built-in catalog when nothing live has been read', () => {
+    expect(composeCatalog(builtIn, null).entries).toEqual(builtIn);
+  });
+
+  it('only re-marks listed/unlisted when the table read failed', () => {
+    const c = composeCatalog(builtIn, { entries: null, menu });
+    expect(c.entries.map((e) => [e.id, e.unlisted ?? false])).toEqual([[1, false], [3780, true]]);
+    expect(c.byId.has(3781)).toBe(false);
+  });
+
+  it('shows the live objectives and keeps blanked ones for names only', () => {
+    const c = composeCatalog(builtIn, { entries: liveEntries, menu });
+    expect(c.entries.map((e) => e.id)).toEqual([1, 3781]);
+    expect(c.isAddable(3781)).toBe(true);
+    expect(c.byId.get(3780)?.n).toBe('Grow and Harvest (M)');
+    expect(c.isAddable(3780)).toBe(false);
   });
 });
