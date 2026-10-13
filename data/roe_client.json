@@ -1,5 +1,5 @@
 {
-  "extractedAt": "2026-10-06T14:50:56.710Z",
+  "extractedAt": "2026-10-13T12:16:53.873Z",
   "source": "FFXI client ROM/307/16.DAT (entries) and ROM/307/24.DAT (menu)",
   "entries": [
     {"id":1,"n":"First Step Forward","repeat":false,"goal":1,"sparks":100,"exp":300,"acc":0,"text":"Speak to one of the following Records of Eminence guides: Rolandienne in Southern San d'Oria (G-10), Isakoth in Bastok Markets (E-11), Fhelm Jobeizat in Windurst Woods (J-10), Eternal Flame in Western Adoulin (H-11)."},
@@ -1495,8 +1495,8 @@
     {"id":3705,"n":"Vanquish Twitherym (UC)","repeat":false,"goal":10,"sparks":100,"exp":500,"acc":500,"text":"[Sylvie 4-3] Defeat the requisite number of experience-yielding twitherym in non-Abyssea areas."},
     {"id":3706,"n":"Subj.: Atkorkamuy (UC)","repeat":false,"goal":1,"sparks":100,"exp":500,"acc":1000,"text":"[Sylvie 4-4] Defeat Atkorkamuy, who resides on Qufim Island, the requisite number of times."},
     {"id":3707,"n":"Magic Bursts (UC)","repeat":false,"goal":10,"sparks":100,"exp":500,"acc":500,"text":"[Sylvie 4-5] Perform the requisite number of magic bursts."},
-    {"id":3758,"n":"Ambuscade Primer Vol. 1 (Daily)","repeat":false,"goal":1,"sparks":100,"exp":100,"acc":0,"text":"(Daily) Assist Abdhaljs in his research by vanquishing the requisite number of qutrubs in non-Legion areas.\nSpecial Reward: Ambuscade Primer Volume 1.\n*You may only have one of these items at any given time."},
-    {"id":3759,"n":"Ambuscade Primer Vol. 2 (Daily)","repeat":false,"goal":1,"sparks":100,"exp":100,"acc":0,"text":"(Daily) Assist Abdhaljs in his research by vanquishing the requisite number of dragons in non-Legion areas.\nSpecial Reward: Ambuscade Primer Volume 2.\n*You may only have one of these items at any given time."},
+    {"id":3758,"n":"Ambuscade Primer Vol. 1 (Daily)","repeat":false,"goal":1,"sparks":100,"exp":100,"acc":0,"text":"(Daily) Assist Abdhaljs in his research by vanquishing the requisite number of dullahans in non-Legion areas.\nSpecial Reward: Ambuscade Primer Volume 1.\n*You may only have one of these items at any given time."},
+    {"id":3759,"n":"Ambuscade Primer Vol. 2 (Daily)","repeat":false,"goal":1,"sparks":100,"exp":100,"acc":0,"text":"(Daily) Assist Abdhaljs in his research by vanquishing the requisite number of undead in non-Legion areas.\nSpecial Reward: Ambuscade Primer Volume 2.\n*You may only have one of these items at any given time."},
     {"id":3760,"n":"Ambuscade (W)","repeat":false,"goal":1,"sparks":100,"exp":200,"acc":0,"text":"(Weekly) Successfully complete any Ambuscade the requisite number of times.\nSpecial reward: Abdhaljs Seal"},
     {"id":3768,"n":"A.M.A.N. Trove (M)","repeat":false,"goal":1,"sparks":500,"exp":5000,"acc":0,"text":"(Monthly) Speak with Greyson in Lower Jeuno (G-11) and hear an explanation on A.M.A.N. Trove.\nSpecial reward: Mars Orb"},
     {"id":3769,"n":"Examine a Home Point (M)","repeat":false,"goal":1,"sparks":500,"exp":5000,"acc":0,"text":"(Monthly) Examine a home point in your home nation.\nSpecial reward: Silver A.M.A.N. Voucher"},
@@ -1509,10 +1509,10 @@
     {"id":3776,"n":"Ambuscade Participation (M)","repeat":false,"goal":1,"sparks":500,"exp":5000,"acc":0,"text":"(Monthly) Form a party and participate in Ambuscade the requisite number of times.\n*Alter egos do not count as party members for this objective.\nSpecial reward: Silver A.M.A.N. voucher"},
     {"id":3777,"n":"Omen Participation (M)","repeat":false,"goal":1,"sparks":500,"exp":5000,"acc":0,"text":"(Monthly) Form a party and participate in Omen the requisite number of times.\n*Alter egos do not count as party members for this objective.\nSpecial reward: Silver A.M.A.N. Voucher"},
     {"id":3778,"n":"Dynamis (D) Instance Participation (M)","repeat":false,"goal":1,"sparks":500,"exp":5000,"acc":0,"text":"(Monthly) Form a party and participate in Dynamis-Divergence (instance) the requisite number of times.\n*Alter egos do not count as party members for this objective.\nSpecial reward: Silver A.M.A.N. Voucher"},
-    {"id":3780,"n":"Grow and Harvest (M)","repeat":false,"goal":1,"sparks":50,"exp":500,"acc":0,"text":"(Monthly) Harvest items you have grown in your Mog House the requisite number of times.\nSpecial reward: 10 deeds of heroism, Trust Primer"},
-    {"id":3783,"n":"Experience Chains (M)","repeat":false,"goal":1,"sparks":100,"exp":1000,"acc":0,"text":"(Monthly) Defeat monsters and achieve an experience chain of 5 the requisite number of times.\nSpecial reward: 10 deeds of heroism, Trust Primer"},
-    {"id":3786,"n":"Wanted (M)","repeat":false,"goal":1,"sparks":200,"exp":2000,"acc":0,"text":"(Monthly) Defeat monsters in Wanted battles the requisite number of times.\nSpecial reward: 10 deeds of heroism, Trust Primer."},
-    {"id":3788,"n":"High-Tier Mission Battlefields (M)","repeat":false,"goal":1,"sparks":1000,"exp":5000,"acc":0,"text":"(Monthly) Emerge victorious from\n★Ark Angels 3 on any difficulty level the requisite number of times.\nSpecial Reward: 10 deeds of heroism, Trust Primer."},
+    {"id":3781,"n":"Mog Garden Items (M)","repeat":false,"goal":3,"sparks":50,"exp":500,"acc":0,"text":"(Monthly) Acquire items that have washed ashore in your Mog Garden the requisite number of times.\nSpecial reward: 10 deeds of heroism, Trust Primer."},
+    {"id":3784,"n":"Coalition Assignments (M)","repeat":false,"goal":1,"sparks":100,"exp":1000,"acc":0,"text":"(Monthly) Complete coalition assignments the requisite number of times.\nSpecial reward: 10 deeds of heroism, Trust Primer."},
+    {"id":3787,"n":"Delve (M)","repeat":false,"goal":2000,"sparks":200,"exp":2000,"acc":0,"text":"(Monthly) Acquire the requisite amount of mweya plasm from sources other than A.M.A.N. vouchers.\nSpecial reward: 10 deeds of heroism, Trust Primer."},
+    {"id":3788,"n":"High-Tier Mission Battlefields (M)","repeat":false,"goal":1,"sparks":1000,"exp":5000,"acc":0,"text":"(Monthly) Emerge victorious from\n★Ark Angels 4 on any difficulty level the requisite number of times.\nSpecial Reward: 10 deeds of heroism, Trust Primer."},
     {"id":3789,"n":"Peculiar Foes I (M)","repeat":false,"goal":1,"sparks":500,"exp":10000,"acc":0,"text":"(Monthly) Vanquish the fiend that appears at the peculiar footprints in Wajaom Woodlands (H-13).\nSpecial reward: Silver A.M.A.N. Voucher"},
     {"id":3790,"n":"Peculiar Foes II (M)","repeat":false,"goal":1,"sparks":500,"exp":10000,"acc":0,"text":"(Monthly) Vanquish the fiend that appears at the peculiar footprints in Mount Zhayolm (I-10).\nSpecial reward: Silver A.M.A.N. Voucher"},
     {"id":3791,"n":"Peculiar Foes III (M)","repeat":false,"goal":1,"sparks":500,"exp":10000,"acc":0,"text":"(Monthly) Vanquish the fiend that appears at the peculiar footprints in Caedarva Mire (I-6).\nSpecial reward: Silver A.M.A.N. Voucher"},
@@ -1531,8 +1531,8 @@
     {"id":3995,"n":"Intense Ambuscade (M)","repeat":false,"goal":1,"sparks":200,"exp":0,"acc":0,"text":"(Monthly Objective) Clear an intense Ambuscade on any difficulty the requisite number of times.\nReward: Abdhaljs Seal"},
     {"id":3996,"n":"Scenarios 18","repeat":false,"goal":0,"sparks":1,"exp":1,"acc":1},
     {"id":3997,"n":"Scenarios 19","repeat":false,"goal":0,"sparks":1,"exp":1,"acc":1},
-    {"id":3998,"n":"Ambuscade Primer Vol. 1","repeat":true,"goal":3,"sparks":100,"exp":300,"acc":0,"text":"Assist Abdhaljs in his research by vanquishing the requisite number of experience-yielding qutrubs in non-Legion or non-Abyssea areas.\nSpecial Reward: Ambuscade Primer Volume 1.\n*You may only have one of these items at any given time."},
-    {"id":3999,"n":"Ambuscade Primer Vol. 2","repeat":true,"goal":3,"sparks":100,"exp":300,"acc":0,"text":"Assist Abdhaljs in his research by vanquishing the requisite number of experience-yielding dragons in non-Legion or non-Abyssea areas.\nSpecial Reward: Ambuscade Primer Volume 2.\n*You may only have one of these items at any given time."},
+    {"id":3998,"n":"Ambuscade Primer Vol. 1","repeat":true,"goal":3,"sparks":100,"exp":300,"acc":0,"text":"Assist Abdhaljs in his research by vanquishing the requisite number of experience-yielding dullahans in non-Legion or non-Abyssea areas.\nSpecial Reward: Ambuscade Primer Volume 1.\n*You may only have one of these items at any given time."},
+    {"id":3999,"n":"Ambuscade Primer Vol. 2","repeat":true,"goal":3,"sparks":100,"exp":300,"acc":0,"text":"Assist Abdhaljs in his research by vanquishing the requisite number of experience-yielding undead in non-Legion or non-Abyssea areas.\nSpecial Reward: Ambuscade Primer Volume 2.\n*You may only have one of these items at any given time."},
     {"id":4000,"n":"Unlock Scenarios I","repeat":false,"goal":0,"sparks":0,"exp":0,"acc":0},
     {"id":4001,"n":"Unlock Scenarios II","repeat":false,"goal":0,"sparks":0,"exp":0,"acc":0},
     {"id":4002,"n":"Unlock Scenarios III","repeat":false,"goal":0,"sparks":0,"exp":0,"acc":0},
@@ -1696,6 +1696,6 @@
     {"cat":"Other","sub":"RoE Quests 3","ids":[964,965,966,967,968,1444,1445,1446]},
     {"cat":"Other","sub":"RoE Quests 4","ids":[3789,3790,3791,3792,3793,3794,3795,3796,3797,3798,3799,3800,3801,3802,3803]},
     {"cat":"Other","sub":"Daily Objectives","ids":[4082,4083,4084]},
-    {"cat":"Other","sub":"Monthly Objectives","ids":[3780,3783,3786,3788]}
+    {"cat":"Other","sub":"Monthly Objectives","ids":[3781,3784,3787,3788]}
   ]
 }
