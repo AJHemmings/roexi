@@ -31,6 +31,7 @@ export function startMockFeed() {
     const m = chars.find((c) => c.conn === conn);
     if (!m) return;
     const msg = JSON.parse(line) as { cmd: string; ids?: number[]; seq?: number };
+    if (msg.cmd === 'notice') { console.log(`[game chat: ${m.name}] [roexi] ${(msg as { msg?: string }).msg ?? ''}`); return; }
     if (msg.cmd === 'roeadd') for (const id of msg.ids ?? []) if (id % 7 !== 0 && m.active.size < 30) m.active.set(id, 0);
     if (msg.cmd === 'roecancel') for (const id of msg.ids ?? []) m.active.delete(id);
     window.setTimeout(() => {
@@ -38,4 +39,13 @@ export function startMockFeed() {
       if (msg.cmd !== 'sync') ingestLine(conn, roeLine(m));
     }, REPLY_DELAY_MS);
   });
+  // Dev-only: type an in-game command as the character on `conn` would, e.g.
+  // roexiGameCommand('all set Ambuscade'). Builds the same frame the addon sends; replies print above.
+  (window as unknown as { roexiGameCommand: (text: string, conn?: number) => void }).roexiGameCommand = (text, conn = 1) => {
+    const words = text.trim().split(/\s+/);
+    const all = words[0]?.toLowerCase() === 'all';
+    if (all) words.shift();
+    const verb = words.shift()?.toLowerCase();
+    ingestLine(conn, JSON.stringify({ t: 'cmd', verb, name: words.join(' '), all }));
+  };
 }
