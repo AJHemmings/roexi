@@ -436,6 +436,53 @@ fn read_roe_menu(ffxi_path: String) -> Result<tauri::ipc::Response, String> {
     Ok(tauri::ipc::Response::new(bytes))
 }
 
+// The game's objective table lives at <FFXI>\ROM\307\16.DAT (spec 2026-10-13 §3); it is parsed by
+// src/roe/clientDat.ts. Same 5,120-byte records as the menu, but it is bigger (4,088 records, 20.9 MB in
+// October 2026), so it has its own cap.
+const ROE_TABLE_RECORD: usize = 5120;
+const ROE_TABLE_MAX_BYTES: usize = 32 * 1024 * 1024;
+
+fn roe_table_path(ffxi_path: &str) -> std::path::PathBuf {
+    Path::new(ffxi_path).join("ROM").join("307").join("16.DAT")
+}
+
+fn check_roe_table_size(len: usize) -> Result<(), String> {
+    if len == 0 || len % ROE_TABLE_RECORD != 0 || len > ROE_TABLE_MAX_BYTES {
+        return Err(format!("not an RoE objective table ({len} bytes)"));
+    }
+    Ok(())
+}
+
+/// Raw bytes of the game's RoE objective table, sent as binary rather than JSON.
+#[tauri::command]
+fn read_roe_table(ffxi_path: String) -> Result<tauri::ipc::Response, String> {
+    let path = roe_table_path(&ffxi_path);
+    let bytes = fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    check_roe_table_size(bytes.len()).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+/// (size, modified ms) of both RoE files, as one string the app compares to skip re-reading unchanged files.
+fn roe_stamp(table: (u64, u128), menu: (u64, u128)) -> String {
+    format!("16:{}:{}|24:{}:{}", table.0, table.1, menu.0, menu.1)
+}
+
+fn file_stamp(path: &Path) -> Result<(u64, u128), String> {
+    let meta = fs::metadata(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let modified = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    Ok((meta.len(), modified))
+}
+
+#[tauri::command]
+fn roe_files_stamp(ffxi_path: String) -> Result<String, String> {
+    Ok(roe_stamp(file_stamp(&roe_table_path(&ffxi_path))?, file_stamp(&roe_menu_path(&ffxi_path))?))
+}
+
 #[tauri::command]
 fn write_text_file(path: String, contents: String) -> Result<(), String> {
     if let Some(parent) = Path::new(&path).parent() {
@@ -565,6 +612,8 @@ pub fn run() {
             fetch_text,
             read_text_file,
             read_roe_menu,
+            read_roe_table,
+            roe_files_stamp,
             write_text_file,
             delete_file,
             list_dir,
@@ -617,5 +666,24 @@ mod tests {
         assert!(check_roe_menu_size(0).is_err());
         assert!(check_roe_menu_size(5121).is_err());
         assert!(check_roe_menu_size(5120 * 4096).is_err());
+    }
+
+    #[test]
+    fn the_roe_table_is_always_rom_307_16_under_the_game_folder() {
+        let p = roe_table_path(r"E:\PlayOnline\SquareEnix\FINAL FANTASY XI\");
+        assert!(p.ends_with(Path::new("ROM").join("307").join("16.DAT")));
+    }
+
+    #[test]
+    fn the_objective_table_gets_a_bigger_cap_than_the_menu() {
+        assert!(check_roe_table_size(20_930_560).is_ok()); // October 2026: 4,088 records
+        assert!(check_roe_table_size(0).is_err());
+        assert!(check_roe_table_size(5121).is_err());
+        assert!(check_roe_table_size(5120 * 6554).is_err()); // just over 32 MB
+    }
+
+    #[test]
+    fn the_stamp_names_both_files_sizes_and_times() {
+        assert_eq!(roe_stamp((20_930_560, 1_791_880_500_000), (5_242_880, 1_791_880_400_000)), "16:20930560:1791880500000|24:5242880:1791880400000");
     }
 }
