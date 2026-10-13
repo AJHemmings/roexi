@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ingestLine, dropConn, getKnownCharacters, setCommandSink } from '../bridge';
-import { runAdd, runRemove } from '../roe/batch';
+import { runAdd, runRemove, runSetCommand } from '../roe/batch';
 import { getResults, clearResults } from '../roe/results';
 import type { CatalogEntry } from '../roe/types';
 import { beginPending, endPending, getPending, isCharBusy, pendingFor } from '../roe/pending';
@@ -247,6 +247,98 @@ describe('in-flight lock', () => {
       expect(sent).toBe(0);
       expect(warn).toHaveBeenCalledTimes(2);
       expect(isCharBusy(getPending(), 'Lysa')).toBe(false); // not left locked by the refused batch
+    } finally {
+      endPending(held);
+      warn.mockRestore();
+    }
+  });
+});
+
+describe('runSetCommand', () => {
+  const thirty = Array.from({ length: 30 }, (_, i) => 100 + i);
+
+  it('cancels just enough no-progress objectives, then adds the set', async () => {
+    hello(20, 'Quinn');
+    ingestLine(20, JSON.stringify({ t: 'roe', items: thirty.map((id, i) => ({ id, p: i === 0 ? 5 : 0 })) }));
+    vi.advanceTimersByTime(200);
+    const sent: string[] = [];
+    fakeAddon(new Map([[20, new Set(thirty)]]), sent);
+    const p = runSetCommand([known('Quinn')], [1, 2], byId, 'set Pair (in game)');
+    await vi.advanceTimersByTimeAsync(400);
+    const result = await p;
+    expect(sent.map((l) => JSON.parse(l)).map((m) => [m.cmd, m.ids])).toEqual([['roecancel', [101, 102]], ['roeadd', [1, 2]]]);
+    expect(result).toEqual([expect.objectContaining({ name: 'Quinn', status: 'ok', cancelled: [101, 102], added: [1, 2], notAccepted: [] })]);
+    expect(getResults()[0]).toMatchObject({ kind: 'add', label: 'set Pair (in game)' });
+  });
+
+  it('adds without cancelling when the set fits', async () => {
+    hello(24, 'Ulla');
+    ingestLine(24, JSON.stringify({ t: 'roe', items: [] }));
+    vi.advanceTimersByTime(200);
+    const sent: string[] = [];
+    fakeAddon(new Map(), sent);
+    const p = runSetCommand([known('Ulla')], [1], byId, 'set One (in game)');
+    await vi.advanceTimersByTimeAsync(400);
+    const result = await p;
+    expect(sent.map((l) => JSON.parse(l).cmd)).toEqual(['roeadd']);
+    expect(result![0]).toMatchObject({ status: 'ok', cancelled: [], added: [1] });
+  });
+
+  it("stops before adding when a cancel doesn't land", async () => {
+    hello(21, 'Rhea');
+    ingestLine(21, JSON.stringify({ t: 'roe', items: thirty.map((id) => ({ id, p: 0 })) }));
+    vi.advanceTimersByTime(200);
+    const sent: string[] = [];
+    setCommandSink((conn, line) => {
+      sent.push(line);
+      const msg = JSON.parse(line) as { seq?: number };
+      // The game ignores the cancel: acked, but the active list doesn't change.
+      setTimeout(() => {
+        if (msg.seq != null) ingestLine(conn, JSON.stringify({ t: 'seqack', seq: msg.seq, ok: true }));
+        ingestLine(conn, JSON.stringify({ t: 'roe', items: thirty.map((id) => ({ id, p: 0 })) }));
+      }, 50);
+    });
+    const p = runSetCommand([known('Rhea')], [1], byId, 'set One (in game)');
+    await vi.advanceTimersByTimeAsync(400);
+    const result = await p;
+    expect(sent.map((l) => JSON.parse(l).cmd)).toEqual(['roecancel']);
+    expect(result![0]).toMatchObject({ name: 'Rhea', status: 'ok', added: [], cancelled: [], notCancelled: [100] });
+  });
+
+  it('sends nothing for a character without enough room', async () => {
+    hello(22, 'Sable');
+    ingestLine(22, JSON.stringify({ t: 'roe', items: thirty.map((id) => ({ id, p: 3 })) }));
+    vi.advanceTimersByTime(200);
+    let sent = false;
+    setCommandSink(() => { sent = true; });
+    const result = await runSetCommand([known('Sable')], [1], byId, 'set One (in game)');
+    expect(sent).toBe(false);
+    expect(result![0]).toMatchObject({ name: 'Sable', status: 'noroom', needed: 1, freeable: 0, added: [] });
+  });
+
+  it('holds the character busy while it runs, including the ids it cancels', async () => {
+    hello(23, 'Tamsin');
+    ingestLine(23, JSON.stringify({ t: 'roe', items: thirty.map((id) => ({ id, p: 0 })) }));
+    vi.advanceTimersByTime(200);
+    fakeAddon(new Map([[23, new Set(thirty)]]));
+    const p = runSetCommand([known('Tamsin')], [1], byId, 'set One (in game)');
+    expect(pendingFor(getPending(), 'Tamsin', 1)).toBe('add');
+    expect(pendingFor(getPending(), 'Tamsin', 100)).toBe('add');
+    await vi.advanceTimersByTimeAsync(400);
+    await p;
+    expect(isCharBusy(getPending(), 'Tamsin')).toBe(false);
+  });
+
+  it('returns null and sends nothing when a target is already busy', async () => {
+    hello(25, 'Vesna');
+    vi.advanceTimersByTime(200);
+    let sent = 0;
+    setCommandSink(() => { sent++; });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const held = beginPending('remove', ['Vesna'], [1]);
+    try {
+      expect(await runSetCommand([known('Vesna')], [1], byId, 'set One (in game)')).toBeNull();
+      expect(sent).toBe(0);
     } finally {
       endPending(held);
       warn.mockRestore();

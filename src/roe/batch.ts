@@ -1,6 +1,6 @@
 // Turns a plan into real addon commands and a result card. Spec §8.6.
 import { nextSeq, sendBoxCommand, awaitSeqAck, waitForRoeFrame, getBoxActiveIds, type SeqAck } from '../bridge';
-import { buildAddPlan, buildRemovePlan, type AddPlan, type RemovePlan } from './plan';
+import { buildAddPlan, buildRemovePlan, buildSetPlan, type AddPlan, type RemovePlan, type SetPlan } from './plan';
 import { diffAddResult, diffRemoveResult } from './diff';
 import { pushAddResult, pushRemoveResult, type AckStatus, type AddCharResult, type RemoveCharResult } from './results';
 import { removedNoticeText } from './chatText';
@@ -89,4 +89,39 @@ async function runOneRemove(plan: RemovePlan, targets: KnownChar[], byId: Map<nu
     if (msg) sendBoxCommand(conn, JSON.stringify({ cmd: 'notice', msg }));
   }
   return { ...base, status, removed, notRemoved };
+}
+
+/** The in-game `set` (spec 2026-10-13 §7): per character, cancel to make room, wait for the game,
+ * then add. Resolves to the per-character results, or null when it refused because a target was busy. */
+export async function runSetCommand(targets: KnownChar[], ids: number[], byId: Map<number, CatalogEntry>, label: string): Promise<AddCharResult[] | null> {
+  const names = targets.map((t) => t.name);
+  if (anyBusy(getPending(), names)) { console.warn('runSetCommand refused: a target already has a batch in flight', names); return null; }
+  const plans = targets.map((t) => buildSetPlan(t, ids, byId));
+  // The cancelled ids are pending too, so their rows show as busy while the batch runs.
+  const key = beginPending('add', names, [...new Set([...ids, ...plans.flatMap((p) => p.cancel)])]);
+  try {
+    const chars = await Promise.all(plans.map((plan) => runOneSet(plan, targets)));
+    pushAddResult(chars, label);
+    return chars;
+  } finally {
+    endPending(key);
+  }
+}
+
+async function runOneSet(plan: SetPlan, targets: KnownChar[]): Promise<AddCharResult> {
+  const base = { name: plan.name, skipAuto: plan.skipAuto, skipUnlisted: plan.skipUnlisted, skipActive: plan.skipActive, skipDone: plan.skipDone, added: [], notAccepted: [], cancelled: [] };
+  if (plan.status === 'noroom') return { ...base, status: 'noroom', needed: plan.needed, freeable: plan.freeable };
+  if (plan.status !== 'ok' || plan.send.length === 0) return { ...base, status: plan.status };
+  const conn = targets.find((t) => t.name === plan.name)!.conn!;
+  let cancelled: number[] = [];
+  if (plan.cancel.length > 0) {
+    const step = await sendAndSettle(conn, 'roecancel', plan.cancel);
+    const { removed, notRemoved } = diffRemoveResult({ send: plan.cancel }, step.afterActiveIds);
+    cancelled = removed;
+    // Adding without the room would only be refused by the game, so stop and report.
+    if (notRemoved.length > 0) return { ...base, status: step.status, cancelled, notCancelled: notRemoved };
+  }
+  const { status, afterActiveIds } = await sendAndSettle(conn, 'roeadd', plan.send);
+  const { landed, notAccepted } = diffAddResult(plan, afterActiveIds);
+  return { ...base, status, added: landed, notAccepted, cancelled };
 }
