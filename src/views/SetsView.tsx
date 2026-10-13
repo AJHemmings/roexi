@@ -27,7 +27,7 @@ export default function SetsView() {
   // Which set's Apply/Remove batch is running, for that set's own button spinner. Local state is safe
   // here because Sets rows stay mounted; *disabling* is the pickers' job (via the pending store).
   const [running, setRunning] = useState<Record<string, 'apply' | 'remove'>>({});
-  const track = (setId: string, kind: 'apply' | 'remove', p: Promise<void>) => {
+  const track = (setId: string, kind: 'apply' | 'remove', p: Promise<unknown>) => {
     setRunning((r) => ({ ...r, [setId]: kind }));
     void p.finally(() => setRunning((r) => { const next = { ...r }; delete next[setId]; return next; }));
   };

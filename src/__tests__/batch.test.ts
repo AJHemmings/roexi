@@ -9,9 +9,11 @@ const hello = (conn: number, name: string) => ingestLine(conn, JSON.stringify({ 
 const known = (name: string) => getKnownCharacters().find((c) => c.name === name)!;
 
 // A fake addon: answers roeadd/roecancel after a tick, exactly like dev/mockFeed.ts.
-function fakeAddon(active: Map<number, Set<number>>) {
+function fakeAddon(active: Map<number, Set<number>>, sent?: string[]) {
   setCommandSink((conn, line) => {
+    sent?.push(line);
     const msg = JSON.parse(line) as { cmd: string; ids?: number[]; seq?: number };
+    if (msg.cmd === 'notice') return;
     const set = active.get(conn) ?? new Set<number>();
     active.set(conn, set);
     if (msg.cmd === 'roeadd') for (const id of msg.ids ?? []) set.add(id);
@@ -139,6 +141,20 @@ describe('runRemove', () => {
     expect(notice).toEqual({ cmd: 'notice', msg: 'removed: Obj 1' });
   });
 
+  it('with notice: false, sends no notice, titles the card and returns the results', async () => {
+    hello(14, 'Orla');
+    ingestLine(14, JSON.stringify({ t: 'roe', items: [{ id: 1, p: 0 }] }));
+    vi.advanceTimersByTime(200);
+    const sent: string[] = [];
+    fakeAddon(new Map([[14, new Set([1])]]), sent);
+    const p = runRemove([known('Orla')], [1], byId, { notice: false, label: 'unset Daily (in game)' });
+    await vi.advanceTimersByTimeAsync(200);
+    const result = await p;
+    expect(sent.some((line) => JSON.parse(line).cmd === 'notice')).toBe(false);
+    expect(result).toEqual([expect.objectContaining({ name: 'Orla', status: 'ok', removed: [1] })]);
+    expect(getResults()[0].label).toBe('unset Daily (in game)');
+  });
+
   it('sends no notice when nothing was removed', async () => {
     hello(13, 'Norah');
     vi.advanceTimersByTime(200);
@@ -202,6 +218,19 @@ describe('in-flight lock', () => {
     setCommandSink(() => { throw new Error('boom'); });
     await expect(runAdd([known('Juno')], [1], byId)).rejects.toThrow('boom');
     expect(isCharBusy(getPending(), 'Juno')).toBe(false);
+  });
+
+  it('runRemove returns null when it refuses', async () => {
+    hello(15, 'Pell');
+    vi.advanceTimersByTime(200);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const held = beginPending('add', ['Pell'], [1]);
+    try {
+      expect(await runRemove([known('Pell')], [1], byId)).toBeNull();
+    } finally {
+      endPending(held);
+      warn.mockRestore();
+    }
   });
 
   it('refuses the whole batch, sending nothing, if any target is already busy', async () => {

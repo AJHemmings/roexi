@@ -54,20 +54,29 @@ async function runOneAdd(plan: AddPlan, targets: KnownChar[]): Promise<AddCharRe
   return { ...base, status, added: landed, notAccepted };
 }
 
-export async function runRemove(targets: KnownChar[], ids: number[], byId: Map<number, CatalogEntry>): Promise<void> {
+export type RemoveOpts = {
+  /** Tell each character what was removed, in its own chat (default true). The in-game `unset` sends one summary instead. */
+  notice?: boolean;
+  /** Result card title, e.g. "unset Ambuscade (in game)". */
+  label?: string;
+};
+
+/** Resolves to the per-character results, or null when it refused because a target was busy. */
+export async function runRemove(targets: KnownChar[], ids: number[], byId: Map<number, CatalogEntry>, opts: RemoveOpts = {}): Promise<RemoveCharResult[] | null> {
   const names = targets.map((t) => t.name);
-  if (anyBusy(getPending(), names)) { console.warn('runRemove refused: a target already has a batch in flight', names); return; }
+  if (anyBusy(getPending(), names)) { console.warn('runRemove refused: a target already has a batch in flight', names); return null; }
   const key = beginPending('remove', names, ids);
   try {
     const plans = buildRemovePlan(targets, ids);
-    const chars = await Promise.all(plans.map((plan) => runOneRemove(plan, targets, byId)));
-    pushRemoveResult(chars);
+    const chars = await Promise.all(plans.map((plan) => runOneRemove(plan, targets, byId, opts.notice ?? true)));
+    pushRemoveResult(chars, opts.label);
+    return chars;
   } finally {
     endPending(key);
   }
 }
 
-async function runOneRemove(plan: RemovePlan, targets: KnownChar[], byId: Map<number, CatalogEntry>): Promise<RemoveCharResult> {
+async function runOneRemove(plan: RemovePlan, targets: KnownChar[], byId: Map<number, CatalogEntry>, notice: boolean): Promise<RemoveCharResult> {
   const base = { name: plan.name, skipNotActive: plan.skipNotActive };
   if (plan.status !== 'ok' || plan.send.length === 0) {
     return { ...base, status: plan.status, removed: [], notRemoved: [] };
@@ -75,7 +84,7 @@ async function runOneRemove(plan: RemovePlan, targets: KnownChar[], byId: Map<nu
   const conn = targets.find((t) => t.name === plan.name)!.conn!;
   const { status, afterActiveIds } = await sendAndSettle(conn, 'roecancel', plan.send);
   const { removed, notRemoved } = diffRemoveResult(plan, afterActiveIds);
-  if (removed.length > 0) {
+  if (notice && removed.length > 0) {
     const msg = removedNoticeText(removed.map((id) => byId.get(id)?.n ?? `#${id}`));
     if (msg) sendBoxCommand(conn, JSON.stringify({ cmd: 'notice', msg }));
   }
