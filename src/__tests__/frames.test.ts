@@ -179,3 +179,25 @@ describe('sanitizePersisted', () => {
     expect(sanitizePersisted(null)).toBeNull();
   });
 });
+
+describe('parseFrame cmd', () => {
+  it('parses an in-game set command', () => {
+    expect(parseFrame('{"t":"cmd","verb":"set","name":"Ambuscade","all":true}')).toEqual({ t: 'cmd', verb: 'set', name: 'Ambuscade', all: true });
+  });
+
+  it('trims the name and treats a missing all as false', () => {
+    expect(parseFrame('{"t":"cmd","verb":"unset","name":"  Ambuscade Daily "}')).toEqual({ t: 'cmd', verb: 'unset', name: 'Ambuscade Daily', all: false });
+  });
+
+  it('rejects an unknown verb, a missing/blank/oversized name, and a non-boolean all', () => {
+    expect(parseFrame('{"t":"cmd","verb":"save","name":"A"}')).toBeNull();
+    expect(parseFrame('{"t":"cmd","verb":"set"}')).toBeNull();
+    expect(parseFrame('{"t":"cmd","verb":"set","name":"   "}')).toBeNull();
+    expect(parseFrame(JSON.stringify({ t: 'cmd', verb: 'set', name: 'x'.repeat(201) }))).toBeNull();
+    expect(parseFrame('{"t":"cmd","verb":"set","name":"A","all":"yes"}')).toBeNull();
+  });
+
+  it('accepts a name of exactly 200 characters', () => {
+    expect(parseFrame(JSON.stringify({ t: 'cmd', verb: 'set', name: 'x'.repeat(200) }))).toMatchObject({ name: 'x'.repeat(200) });
+  });
+});

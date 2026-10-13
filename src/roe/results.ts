@@ -6,13 +6,19 @@ export type AckStatus = 'ok' | 'no-response' | 'addon-error';
 
 export type AddCharResult = {
   name: string;
-  status: 'full' | 'offline' | AckStatus;
+  status: 'full' | 'offline' | 'noroom' | AckStatus;
   skipAuto: number[];
   skipUnlisted: number[];
   skipActive: number[];
   skipDone: number[];
   added: number[];
   notAccepted: number[];
+  /** In-game `set` only (spec 2026-10-13 §7): cancelled to make room, and cancels that didn't land. */
+  cancelled?: number[];
+  notCancelled?: number[];
+  /** 'noroom' only: slots short, and how many could have been freed. */
+  needed?: number;
+  freeable?: number;
 };
 export type RemoveCharResult = {
   name: string;
@@ -22,8 +28,8 @@ export type RemoveCharResult = {
   notRemoved: number[];
 };
 export type ResultCard =
-  | { id: number; kind: 'add'; createdAt: number; chars: AddCharResult[] }
-  | { id: number; kind: 'remove'; createdAt: number; chars: RemoveCharResult[] };
+  | { id: number; kind: 'add'; createdAt: number; chars: AddCharResult[]; label?: string }
+  | { id: number; kind: 'remove'; createdAt: number; chars: RemoveCharResult[]; label?: string };
 
 const CAP = 20;
 let cards: ResultCard[] = [];
@@ -31,13 +37,14 @@ let nextId = 1;
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
 
-export function pushAddResult(chars: AddCharResult[]): void {
-  const card: ResultCard = { id: nextId++, kind: 'add', createdAt: Date.now(), chars };
+// `label` replaces the card's plain "Add result"/"Remove result" title, e.g. "set Ambuscade (in game)".
+export function pushAddResult(chars: AddCharResult[], label?: string): void {
+  const card: ResultCard = { id: nextId++, kind: 'add', createdAt: Date.now(), chars, ...(label ? { label } : {}) };
   cards = [card, ...cards].slice(0, CAP);
   notify();
 }
-export function pushRemoveResult(chars: RemoveCharResult[]): void {
-  const card: ResultCard = { id: nextId++, kind: 'remove', createdAt: Date.now(), chars };
+export function pushRemoveResult(chars: RemoveCharResult[], label?: string): void {
+  const card: ResultCard = { id: nextId++, kind: 'remove', createdAt: Date.now(), chars, ...(label ? { label } : {}) };
   cards = [card, ...cards].slice(0, CAP);
   notify();
 }

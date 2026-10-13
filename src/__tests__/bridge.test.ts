@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ingestLine, dropConn, getKnownCharacters, waitForRoeFrame, awaitSeqAck, removeChar, seedPersisted } from '../bridge';
+import { ingestLine, dropConn, getKnownCharacters, waitForRoeFrame, awaitSeqAck, removeChar, seedPersisted, setGameCommandHandler } from '../bridge';
 
 // The bridge module is a singleton store, so every test uses its own conn id and character name.
 const hello = (id: number, name: string, over: Record<string, unknown> = {}) => JSON.stringify({ t: 'hello', id, name, ...over });
@@ -138,5 +138,26 @@ describe('game lock storage', () => {
     const g = known('Lock3')!.gameLocked!;
     expect(g.has(5)).toBe(false);
     expect(g.get(6)).toBe(1);
+  });
+});
+
+describe('game commands', () => {
+  it('hands a cmd frame to the registered handler and leaves the box alone', () => {
+    ingestLine(901, hello(901, 'Quill'));
+    vi.advanceTimersByTime(200);
+    const seen: unknown[] = [];
+    setGameCommandHandler((conn, f) => { seen.push([conn, f]); });
+    try {
+      ingestLine(901, JSON.stringify({ t: 'cmd', verb: 'set', name: 'Ambuscade', all: false }));
+      expect(seen).toEqual([[901, { t: 'cmd', verb: 'set', name: 'Ambuscade', all: false }]]);
+      vi.advanceTimersByTime(200);
+      expect(known('Quill')!.online).toBe(true);
+    } finally {
+      setGameCommandHandler(null);
+    }
+  });
+
+  it('drops a cmd frame quietly when nothing is registered', () => {
+    expect(() => ingestLine(902, JSON.stringify({ t: 'cmd', verb: 'set', name: 'A' }))).not.toThrow();
   });
 });

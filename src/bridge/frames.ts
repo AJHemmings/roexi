@@ -23,8 +23,13 @@ export type IdentityFrame = {
 export type RoeFrame = { t: 'roe'; items: RoeActive[] };
 export type RoeDoneFrame = { t: 'roedone'; page: number; ids: number[] };
 export type SeqAckFrame = { t: 'seqack'; seq: number; ok: boolean };
-export type Frame = IdentityFrame | RoeFrame | RoeDoneFrame | SeqAckFrame;
-export type StateFrame = Exclude<Frame, SeqAckFrame>;
+/** Typed in game as //roexi [all] set|unset <name>; the addon only forwards it (spec 2026-10-13 §4). */
+export type CmdFrame = { t: 'cmd'; verb: 'set' | 'unset'; name: string; all: boolean };
+export type Frame = IdentityFrame | RoeFrame | RoeDoneFrame | SeqAckFrame | CmdFrame;
+export type StateFrame = Exclude<Frame, SeqAckFrame | CmdFrame>;
+
+/** Same cap as the addon's chat lines; the addon cuts a longer typed name to this. */
+export const CMD_NAME_MAX = 200;
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isInt = (v: unknown): v is number => isNum(v) && Number.isInteger(v);
@@ -69,6 +74,14 @@ export function parseFrame(line: string): Frame | null {
     case 'seqack': {
       if (!isInt(o.seq)) return null;
       return { t: 'seqack', seq: o.seq, ok: o.ok !== false };
+    }
+    case 'cmd': {
+      if (o.verb !== 'set' && o.verb !== 'unset') return null;
+      if (typeof o.name !== 'string') return null;
+      const name = o.name.trim();
+      if (!name || name.length > CMD_NAME_MAX) return null;
+      if (o.all !== undefined && typeof o.all !== 'boolean') return null;
+      return { t: 'cmd', verb: o.verb, name, all: o.all === true };
     }
     default:
       return null;

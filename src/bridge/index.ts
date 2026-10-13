@@ -2,7 +2,7 @@ import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { appLocalDataDir } from '@tauri-apps/api/path';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { parseFrame, applyFrame, sanitizePersisted } from './frames';
+import { parseFrame, applyFrame, sanitizePersisted, type CmdFrame } from './frames';
 import { doneFromPages } from '../roe/bitmap';
 import type { Box, KnownChar, PersistedChar } from '../roe/types';
 
@@ -234,12 +234,19 @@ export function waitForRoeFrame(conn: number, afterTs: number, timeoutMs: number
   });
 }
 
+// ── in-game commands ─────────────────────────────────────────────────────────
+type GameCommandHandler = (conn: number, frame: CmdFrame) => void;
+let gameCommandHandler: GameCommandHandler | null = null;
+/** roe/gameCommands.ts registers itself here, so the bridge never imports batch code (batch.ts imports the bridge). */
+export function setGameCommandHandler(fn: GameCommandHandler | null) { gameCommandHandler = fn; }
+
 // ── ingest ───────────────────────────────────────────────────────────────────
 /** Feed one line from a connection. Used by the Tauri listener and by the dev mock feed. */
 export function ingestLine(conn: number, line: string) {
   const f = parseFrame(line);
   if (!f) return;
   if (f.t === 'seqack') { resolveSeq(f.seq, { ok: f.ok, reason: f.ok ? undefined : 'addon error' }); return; }
+  if (f.t === 'cmd') { gameCommandHandler?.(conn, f); return; }
   const prev = byConn.get(conn);
   const seed = f.t === 'hello' || f.t === 'self' ? persisted.get(f.name) : undefined;
   const r = applyFrame(prev, conn, f, Date.now(), seed);
