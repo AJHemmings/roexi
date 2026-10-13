@@ -364,9 +364,35 @@ windower.register_event('prerender', function()
     end
 end)
 
-windower.register_event('addon command', function(cmd)
+----------------------------------------------------------------------
+-- //roexi [all] set|unset <set name>: forwarded to the app, which owns the sets and every rule
+----------------------------------------------------------------------
+local USAGE = 'usage: //roexi [all] set|unset <set name>'
+
+local function forward_set_command(all, verb, args)
+    -- The app's socket reader expects UTF-8 and drops the connection on anything else, and game
+    -- chat input is not UTF-8: send printable ASCII only. 200 is the app's limit for a name.
+    local name = (table.concat(args, ' '):gsub('[^\32-\126]', ''))
+    name = name:match('^%s*(.-)%s*$')
+    name = name:match('^"(.*)"$') or name
+    name = name:sub(1, 200)
+    if name == '' then chat(USAGE) return end
+    if not connected then chat('not connected to the roexi app') return end
+    queue_send('{"t":"cmd","verb":"' .. verb .. '","name":"' .. esc(name) .. '","all":' .. (all and 'true' or 'false') .. '}\n')
+end
+
+windower.register_event('addon command', function(cmd, ...)
     cmd = (cmd or 'help'):lower()
-    if cmd == 'status' then
+    local args = {...}
+    local all = false
+    if cmd == 'all' then
+        all = true
+        cmd = (table.remove(args, 1) or ''):lower()
+        if cmd ~= 'set' and cmd ~= 'unset' then chat(USAGE) return end
+    end
+    if cmd == 'set' or cmd == 'unset' then
+        forward_set_command(all, cmd, args)
+    elseif cmd == 'status' then
         chat((connected and 'connected' or 'not connected') .. ' | active ' .. #roe_active .. '/' .. MAX_ACTIVE)
         for _, e in ipairs(roe_active) do chat('  #' .. e.id .. ' progress ' .. e.p) end
         local pages = {}
@@ -384,7 +410,7 @@ windower.register_event('addon command', function(cmd)
     elseif cmd == 'sync' then
         if connected then send_snapshot('self') chat('synced') else chat('not connected') end
     else
-        chat('commands: status | refresh | sync')
+        chat('commands: status | refresh | sync | set <set> | unset <set> | all set <set> | all unset <set>')
     end
 end)
 
