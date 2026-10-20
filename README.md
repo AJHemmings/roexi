@@ -15,7 +15,7 @@ roexi is a desktop app for FFXI multiboxers to view and manage Records of Eminen
 
 ## Features
 
-- **Library**: the full ~1,540-objective catalog (ids, names, categories, rewards), searchable and grouped by the same categories and sections as the in-game Records of Eminence menu, with Daily/Repeat tags and per-character active/done state. Objectives the game isn't offering right now (like Vana'Bout outside the event) are marked **Not live** and can't be added.
+- **Library**: the full ~1,540-objective catalog (ids, names, categories, rewards), searchable and grouped by the same categories and sections as the in-game Records of Eminence menu, with Daily/Repeat tags and per-character active/done state. Objectives the game isn't offering right now (like Vana'Bout outside the event) are marked **Not live** and can't be added. roexi reads the objective list straight from your game install, so after a version update new and renamed objectives show up without waiting for a roexi update.
 - **Active**: every objective currently active on any connected character, with real per-character progress bars. Expand a row to see every character. The ones missing that objective get an **Add** button, or the reason they can't take it (offline, full, completed, auto daily). The row's ⋮ menu can add or remove it across your whole roster.
 - **Always-visible slot counts**: each character's `X/30` stays pinned at the top while you scroll, so you can see who has room before you add anything.
 - **Safe Add/Remove**: while a change is going through for a character, their buttons grey out with a spinner, so a double-click can't send it twice.
