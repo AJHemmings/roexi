@@ -97,7 +97,7 @@ describe('runAdd', () => {
       }, 50);
     });
     const p = runAdd([known('Refusa')], [1], byId);
-    await vi.advanceTimersByTimeAsync(200);
+    await vi.advanceTimersByTimeAsync(2000); // past the settle window: a refusal is only known once it runs out
     await p;
     vi.advanceTimersByTime(200);
     expect(getResults()[0].chars[0]).toMatchObject({ name: 'Refusa', notAccepted: [1] });
@@ -139,6 +139,29 @@ describe('runRemove', () => {
     await p;
     const notice = sent.map((l) => JSON.parse(l)).find((m) => m.cmd === 'notice');
     expect(notice).toEqual({ cmd: 'notice', msg: 'removed: Obj 1' });
+  });
+
+  it('waits for the game to show every cancel before naming them, even when the last one lands after the ack', async () => {
+    hello(15, 'Pell');
+    ingestLine(15, JSON.stringify({ t: 'roe', items: [{ id: 1, p: 0 }, { id: 2, p: 0 }] }));
+    vi.advanceTimersByTime(200);
+    const sent: string[] = [];
+    setCommandSink((conn, line) => {
+      sent.push(line);
+      const msg = JSON.parse(line) as { cmd: string; seq?: number };
+      if (msg.cmd !== 'roecancel') return;
+      // The game answers each cancel separately; the second answer arrives after the addon's ack.
+      setTimeout(() => ingestLine(conn, JSON.stringify({ t: 'roe', items: [{ id: 2, p: 0 }] })), 50);
+      setTimeout(() => ingestLine(conn, JSON.stringify({ t: 'seqack', seq: msg.seq, ok: true })), 600);
+      setTimeout(() => ingestLine(conn, JSON.stringify({ t: 'roe', items: [] })), 900);
+    });
+    const two = new Map(byId).set(2, { id: 2, n: 'Obj 2', repeat: false });
+    const p = runRemove([known('Pell')], [1, 2], two);
+    await vi.advanceTimersByTimeAsync(2000);
+    await p;
+    expect(getResults()[0].chars[0]).toMatchObject({ removed: [1, 2], notRemoved: [] });
+    const notice = sent.map((l) => JSON.parse(l)).find((m) => m.cmd === 'notice');
+    expect(notice).toEqual({ cmd: 'notice', msg: 'removed: Obj 1, Obj 2' });
   });
 
   it('with notice: false, sends no notice, titles the card and returns the results', async () => {
@@ -299,7 +322,7 @@ describe('runSetCommand', () => {
       }, 50);
     });
     const p = runSetCommand([known('Rhea')], [1], byId, 'set One (in game)');
-    await vi.advanceTimersByTimeAsync(400);
+    await vi.advanceTimersByTimeAsync(2000); // past the settle window: a refusal is only known once it runs out
     const result = await p;
     expect(sent.map((l) => JSON.parse(l).cmd)).toEqual(['roecancel']);
     expect(result![0]).toMatchObject({ name: 'Rhea', status: 'ok', added: [], cancelled: [], notCancelled: [100] });

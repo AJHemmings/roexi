@@ -1,5 +1,5 @@
 // Turns a plan into real addon commands and a result card. Spec §8.6.
-import { nextSeq, sendBoxCommand, awaitSeqAck, waitForRoeFrame, getBoxActiveIds, type SeqAck } from '../bridge';
+import { nextSeq, sendBoxCommand, awaitSeqAck, waitForRoeFrame, getBoxActiveIds, getBoxActiveAt, type SeqAck } from '../bridge';
 import { buildAddPlan, buildRemovePlan, buildSetPlan, type AddPlan, type RemovePlan, type SetPlan } from './plan';
 import { diffAddResult, diffRemoveResult } from './diff';
 import { pushAddResult, pushRemoveResult, type AckStatus, type AddCharResult, type RemoveCharResult } from './results';
@@ -20,7 +20,20 @@ async function sendAndSettle(conn: number, cmd: 'roeadd' | 'roecancel', ids: num
   const sentAt = Date.now();
   sendBoxCommand(conn, JSON.stringify({ cmd, ids, seq }));
   const ack = await awaitSeqAck(conn, seq, ACK_TIMEOUT_MS);
-  await waitForRoeFrame(conn, sentAt, SETTLE_TIMEOUT_MS);
+  // The game answers each injection with its own active list, and the last answer can land after
+  // the ack. So the first fresh frame isn't enough: keep taking frames until every id shows the
+  // outcome, or the settle window runs out (then the diff reports what really didn't happen).
+  const isSettled = () => {
+    const active = new Set(getBoxActiveIds(conn));
+    return ids.every((id) => (cmd === 'roeadd') === active.has(id));
+  };
+  const deadline = Date.now() + SETTLE_TIMEOUT_MS;
+  let seenAt = sentAt;
+  while (!(getBoxActiveAt(conn) > sentAt && isSettled())) {
+    const left = deadline - Date.now();
+    if (left <= 0 || !(await waitForRoeFrame(conn, seenAt, left))) break;
+    seenAt = getBoxActiveAt(conn);
+  }
   // A 'no response' or addon-error batch is still diffed: the injections may have happened and
   // only the ack (or its timely arrival) was lost.
   return { status: ackStatus(ack), afterActiveIds: getBoxActiveIds(conn) };

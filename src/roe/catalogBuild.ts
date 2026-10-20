@@ -53,7 +53,7 @@ export const RETIRED: readonly number[] = [772, 773, 774, 775, 776, 777, 778, 77
 // "Scenarios N" / "Unlock Scenarios" story trackers, Mentor License Unlock, the "Escutcheon: X" quest flags
 // and Lu Shang's rod. They are the only records with a goal of 0, which no real objective has, and their
 // descriptions are blank or internal references ("926", "Records of Eminence Quest 2").
-const isInternalFlag = (c: ClientEntry): boolean => c.goal === 0;
+export const isInternalFlag = (c: ClientEntry): boolean => c.goal === 0;
 
 // Wiki spellings that differ from the client name for a reason other than a typo.
 // Key: normalised wiki name, value: normalised client name.

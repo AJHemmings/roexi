@@ -85,7 +85,7 @@ export type CatalogEntry = {
   auto?: boolean;
   /** The game's RoE menu doesn't list it right now (an event objective outside its event, or an auto
    * daily), so it can't be undertaken. Set by the catalog build from the client's menu snapshot and
-   * refreshed at runtime from the player's own client (liveMenu.ts). Spec 2026-10-06 §8. */
+   * refreshed at runtime from the player's own client (liveClient.ts). Spec 2026-10-06 §8. */
   unlisted?: boolean;
 };
 
